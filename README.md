@@ -12,11 +12,13 @@ This repository contains the implementation of the DexHandEnv, a simulation envi
 - **Clone the repository**:
 ```bash
     git clone https://github.com/THUARL-A01-1/ARL_envs.git
-    cd ARL_envs```
+    cd ARL_envs
+```
 
 - **Install dependencies**:
 ```bash
-    pip install -r requirements.txt```
+    pip install -r requirements.txt
+```
 
 Ensure MuJoCo is installed and properly configured. Refer to the MuJoCo installation guide for setup instructions.
 
@@ -42,7 +44,7 @@ To create a custom scene, modify the 'dexhand/scene.xml' file, which has provide
     </body>
 ```
 
-- **Test the environment with GUI**
+- **Test the environment with GUI**  
 If you want to test the components in the GUI by dragging the hand and objects, it is recommended to run test_in_GUI():
 ```python
     import mujoco    
@@ -57,7 +59,7 @@ If you want to test the components in the GUI by dragging the hand and objects, 
 The interface is relative user-friendly.
 ![GUI](images/GUI.png)
 
-- **Construct your action sequence**
+- **Construct your action sequence**  
 The env.step() function takes the action as input, which is defined as [dx, dy, dz, droll, dpitch, dyaw, target_force].
 The following code simulate the process of: approaching -> gripping -> lifting -> dropping -> releasing
 ```python
@@ -71,7 +73,7 @@ The following code simulate the process of: approaching -> gripping -> lifting -
 ```
 ![Simulation demo](images/simulation_demo.png)
 
-- **Render modes**
+- **Render modes**  
 The environment rendering setting is based on the following codes:
 ```python
     self.episode_buffer = {"visual": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
@@ -80,7 +82,7 @@ The environment rendering setting is based on the following codes:
 ```
 
 # File Structure
-```text
+```python
 .
 ├── dexhand/
 │   ├── dexhand.py          # DexHand environment implementation
