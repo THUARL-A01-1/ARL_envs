@@ -10,13 +10,13 @@ This repository contains the implementation of the DexHandEnv, a simulation envi
 
 # Installation
 - **Clone the repository**:
-'''bash
-    git clone <repository-url>
-    cd <repository-folder>'''
+```bash
+    git clone https://github.com/THUARL-A01-1/ARL_envs.git
+    cd ARL_envs```
 
 - **Install dependencies**:
-'''bash
-    pip install -r requirements.txt'''
+```bash
+    pip install -r requirements.txt```
 
 Ensure MuJoCo is installed and properly configured. Refer to the MuJoCo installation guide for setup instructions.
 
@@ -35,16 +35,16 @@ The DexHandEnv class is the main environment implementation. It includes:
 # Usage
 - **Construct your scene**
 To create a custom scene, modify the 'dexhand/scene.xml' file, which has provided four default objects for testing.
-'''xml
+```xml
     <body name="object" pos="0.0 -0.06 0.03">
         <freejoint name="object"/>
         <geom class="object" type="box" size="0.02 0.1 0.03" mass="0.3" rgba="0.5 0.5 0 1"/>
     </body>
-'''
+```
 
 - **Test the environment with GUI**
 If you want to test the components in the GUI by dragging the hand and objects, it is recommended to run test_in_GUI():
-'''python
+```python
     import mujoco    
     from mujoco import viewer
     model_path = os.path.join('dexhand', 'scene.xml')
@@ -53,14 +53,14 @@ If you want to test the components in the GUI by dragging the hand and objects, 
     model = mujoco.MjModel.from_xml_string(xml_content)
     mj_data = mujoco.MjData(model)
     viewer.launch(model, mj_data)
-'''
+```
 The interface is relative user-friendly.
 ![GUI](images/GUI.png)
 
 - **Construct your action sequence**
 The env.step() function takes the action as input, which is defined as [dx, dy, dz, droll, dpitch, dyaw, target_force].
 The following code simulate the process of: approaching -> gripping -> lifting -> dropping -> releasing
-'''python
+```python
     from dexhand.dexhand import DexHandEnv
     env = DexHandEnv()
     env.step(np.array([0.0, 0.0, -0.1, 0, 0, 0, 0]))
@@ -68,19 +68,19 @@ The following code simulate the process of: approaching -> gripping -> lifting -
     env.step(np.array([0, 0, 0.05, 0, 0, 0, 20]))
     env.step(np.array([0, 0, -0.05, 0, 0, 0, 20]))
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
-'''
+```
 ![Simulation demo](images/simulation_demo.png)
 
 - **Render modes**
 The environment rendering setting is based on the following codes:
-'''python
+```python
     self.episode_buffer = {"visual": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
     self.episode_mode = "keyframe"  # Full mode for enhancing the display, keyframe mode for training
     self.render_mode = "episode"  # snapshot mode for rendering the current frame, episode mode for rendering the whole episode
-'''
+```
 
 # File Structure
-'''text
+```text
 .
 ├── dexhand/
 │   ├── dexhand.py          # DexHand environment implementation
@@ -88,7 +88,7 @@ The environment rendering setting is based on the following codes:
 ├── test_dexhand.py         # Test script for the DexHand environment
 ├── requirements.txt        # Python dependencies
 └── README.md               # Project documentation
-'''
+```
 
 # Dependencies
 Python 3.8+
