@@ -35,7 +35,7 @@ The DexHandEnv class is the main environment implementation. It includes:
 - **test_in_GUI()**: Launches the MuJoCo GUI for manual interaction with the environment.
 
 # Usage
-- **Construct your scene**
+- **Construct your scene**  
 To create a custom scene, modify the 'dexhand/scene.xml' file, which has provided four default objects for testing.
 ```xml
     <body name="object" pos="0.0 -0.06 0.03">
