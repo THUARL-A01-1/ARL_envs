@@ -1,0 +1,97 @@
+<mujoco>
+    <!-- The mesh assets -->
+    <asset>
+        <mesh class="dexhand" file="dexhand_base.obj" name="hand_base"/>
+        <mesh class="dexhand" file="driver.obj" name="driver"/>
+        <mesh class="dexhand" file="tac3d.obj" name="finger"/>
+        <mesh class="dexhand" file="pad.obj" name="pad"/>
+    </asset>
+        <!-- The robot -->
+    <worldbody>
+        <!-- hand base mount -->
+        <body name="hand_base_mount" pos="0 0 0.3" zaxis="0 0 1" childclass="dexhand" gravcomp="1">
+            <joint name="hand_base_joint_x" type="slide" pos="0 0 0" axis="1 0 0" frictionloss="1" damping="10" range="-1 1"/>
+            <joint name="hand_base_joint_y" type="slide" pos="0 0 0" axis="0 1 0" frictionloss="1" damping="10" range="-1 1"/>
+            <joint name="hand_base_joint_z" type="slide" pos="0 0 0" axis="0 0 1" frictionloss="1" damping="10" range="-1 1"/>
+            <joint name="hand_base_joint_pitch" type="hinge" pos="0 0 0" axis="1 0 0" frictionloss="1" damping="10" range="-3.14 3.14"/>
+            <joint name="hand_base_joint_roll" type="hinge" pos="0 0 0" axis="0 1 0" frictionloss="1" damping="10" range="-3.14 3.14"/>
+            <joint name="hand_base_joint_yaw" type="hinge" pos="0 0 0" axis="0 0 1" frictionloss="1" damping="10" range="-3.14 3.14"/>
+            <geom class="visual" type="sphere" size="0.01" material="metal"/>
+            <!-- hand base -->
+            <body name="hand_base" pos="0 0 0" zaxis="0 1 0" gravcomp="1">
+                <geom class="visual" mesh="hand_base" pos="-0.081 0 -0.035" material="white"/>
+                <geom class="collision" mesh="hand_base" pos="-0.081 0 -0.035"/>
+                <body name="hand_frame" pos="0 0 0" gravcomp="1">
+                    <geom class="visual" type="cylinder" size="0.003 0.03" pos="0.03 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                    <geom class="visual" type="cylinder" size="0.003 0.03" pos="0 0.03 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                    <geom class="visual" type="cylinder" size="0.003 0.03" pos="0 0 0.03" rgba="0 0 1 1"/>
+                </body>
+                <!-- left driver and finger -->
+                <body name="left_driver" pos="-0.039 0.001 -0.020" gravcomp="1">
+                    <joint name="left_driver_joint" class="driver" axis="-1 0 0"/>
+                    <geom class="visual" mesh="driver" material="metal"/>
+                    <geom class="collision" mesh="driver"/>
+                    <body name="left_finger" pos="0 0 0" gravcomp="1">
+                        <geom class="visual" mesh="finger" material="black"/>
+                        <geom class="collision" mesh="finger"/>
+                        <body name="left_pad" pos="0.105 0.168 0.019" xyaxes="0 1 0 0 0 -1" gravcomp="1">
+                            <body name="left_pad_frame" pos="0 0 0" gravcomp="1">
+                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                            </body>
+                            <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
+                            <!-- <geom class="pad" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/> -->
+                            <include file="dexhand/assets/tactile/left_pad_collisions.xml"/>
+                            <site name="left_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
+                        </body>
+                    </body>
+                </body>
+                <!-- right driver and finger -->
+                <body name="right_driver" pos="0.039 0.001 0.020" xyaxes="-1 0 0 0 1 0" gravcomp="1">
+                    <joint name="right_driver_joint" class="driver" axis="-1 0 0"/>
+                    <geom class="visual" mesh="driver" material="metal"/>
+                    <geom class="collision" mesh="driver"/>
+                    <body name="right_finger" pos="0 0 0" gravcomp="1">
+                        <geom class="visual" mesh="finger" material="black"/>
+                        <geom class="collision" mesh="finger"/>
+                        <body name="right_pad" pos="0.105 0.168 0.019" xyaxes="0 1 0 0 0 -1" gravcomp="1">
+                            <body name="right_pad_frame" pos="0 0 0" gravcomp="1">
+                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                            </body>
+                            <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
+                            <!-- <geom class="pad" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/> -->
+                            <include file="dexhand/assets/tactile/right_pad_collisions.xml"/>
+                            <site name="right_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+    <tendon>
+        <fixed name="gripper">
+        <joint joint="right_driver_joint" coef="1"/>
+        <joint joint="left_driver_joint" coef="1"/>
+        </fixed>
+    </tendon>
+    <equality>
+        <joint joint1="right_driver_joint" joint2="left_driver_joint"/>
+    </equality>
+    <actuator>
+        <!-- <position class="dexhand" name="position_x" joint="hand_base_joint_x" ctrlrange="-1 1" kp="100"/>
+        <position class="dexhand" name="position_y" joint="hand_base_joint_y" ctrlrange="-1 1" kp="100"/>
+        <position class="dexhand" name="position_z" joint="hand_base_joint_z" ctrlrange="-1 1" kp="100"/>
+        <position class="dexhand" name="position_yaw" joint="hand_base_joint_yaw" ctrlrange="-3.14159 3.14159" kp="100"/> -->
+        <velocity class="dexhand" name="velocity_x" joint="hand_base_joint_x" ctrlrange="-1 1" kv="100"/>
+        <velocity class="dexhand" name="velocity_y" joint="hand_base_joint_y" ctrlrange="-1 1" kv="100"/>
+        <velocity class="dexhand" name="velocity_z" joint="hand_base_joint_z" ctrlrange="-1 1" kv="100"/>
+        <velocity class="dexhand" name="velocity_pitch" joint="hand_base_joint_pitch" ctrlrange="-3.14159 3.14159" kv="100"/>
+        <velocity class="dexhand" name="velocity_roll" joint="hand_base_joint_roll" ctrlrange="-3.14159 3.14159" kv="100"/>
+        <velocity class="dexhand" name="velocity_yaw" joint="hand_base_joint_yaw" ctrlrange="-3.14159 3.14159" kv="100"/>
+        <motor class="dexhand" name="gripper" tendon="gripper" ctrlrange="-10 30" forcerange="-10 30"/>
+    </actuator>
+    <include file="dexhand/assets/tactile/touch_sensors.xml"/>
+</mujoco>

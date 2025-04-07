@@ -1,0 +1,37 @@
+<mujoco>
+    <include file="dexhand/config.xml"/>
+    <include file="dexhand/visual.xml"/>
+    <include file="dexhand/dexhand.xml"/>
+    <!-- The object -->
+    <worldbody>
+        <!-- cylinder -->
+        <!-- <body name="object" pos="0.0 -0.0 0.03" zaxis="0 1 0">
+            <freejoint/>
+            <geom class="object" type="cylinder" size="0.03 0.06" mass="0.3" rgba=".5 .5 0 1"/>
+        </body> -->
+        <!-- box -->
+        <!-- <body name="object" pos="0.0 0.0 0.02">
+            <freejoint/>
+            <geom class="collision" type="box" size="0.02 0.02 0.02" mass="0.3" friction="1.0" rgba="0.5 0.5 0 1"/>
+        </body> -->
+        <!-- bar -->
+        <body name="object" pos="0.0 -0.06 0.03">
+            <freejoint name="object"/>
+            <geom class="object" type="box" size="0.02 0.1 0.03" mass="0.3" rgba="0.5 0.5 0 1"/>
+        </body>
+        <!-- hand_base -->
+        <!-- <body name="object" pos="0.04 0.08 0" xyaxes="0 -1 0 0 0 1">
+            <freejoint/>
+            <geom class="object" mesh="hand_base" mass="0.1" material="white"/>
+        </body> -->
+    </worldbody>
+</mujoco>
+
+<!-- <mujoco model="1d_object">
+    <body name="1d_object" pos="0 0 0">
+        <joint type="free" name="1d_object_jnt"/>
+        <geom class="visual" name="object_visual" type="box" size="0.02 0.1 0.02" rgba="0.8 0.2 0.2 1" friction="1.0"/>
+        <geom class="collision" name="object_collision" type="box" size="0.02 0.1 0.02" friction="1.0"/>
+        <inertial mass="0.5" pos="-0.016595599059485197 0 0" diaginertia="0.005 0.005 0.005"/>
+    </body>
+</mujoco> -->
