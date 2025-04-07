@@ -35,7 +35,7 @@ class DexHandEnv(gym.Env):
             "joint": gym.spaces.Box(low=-1, high=1, shape=(self.mj_model.njnt,), dtype=np.float32)})  # Observation space
         
         self.episode_buffer = {"visual": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
-        self.episode_mode = "keyframe"  # Full mode for debugging, keyframe mode for training
+        self.episode_mode = "keyframe"  # Full mode for enhancing the display, keyframe mode for training
         self.render_mode = "episode"  # snapshot mode for rendering the current frame, episode mode for rendering the whole episode
         # self.reset()
 
@@ -105,7 +105,7 @@ class DexHandEnv(gym.Env):
         X, Y = np.meshgrid(np.arange(20), np.arange(20))
         Fx, Fy, Fz = tactile[1, ...], tactile[2, ...], tactile[0, ...]
         quiver = plt.quiver(Y, X, Fy, Fx, Fz, cmap='coolwarm', pivot='tail',
-                            scale=3, width=0.005, headwidth=4, headlength=6, headaxislength=4)
+                            scale=1, width=0.005, headwidth=4, headlength=6, headaxislength=4)
         plt.axis('off')
         plt.axis('equal')
         # plt.colorbar(quiver, label='fn/N')

@@ -1,0 +1,5 @@
+cv2
+gymnasium
+matplotlib
+mujoco
+numpy

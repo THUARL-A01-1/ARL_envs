@@ -1,16 +1,13 @@
 import cv2
 import os
-from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import argparse
 import mujoco    
 from mujoco import viewer
 from dexhand.dexhand import DexHandEnv
 
 def test_in_GUI():
-    model_path = os.path.join('tactile_envs/dexhand', 'scene.xml')
+    model_path = os.path.join('dexhand', 'scene.xml')
     with open(model_path,"r") as f:
         xml_content = f.read()
     model = mujoco.MjModel.from_xml_string(xml_content)
@@ -36,13 +33,13 @@ def calculate_wrench(tactile):
 def test_env():
     env = DexHandEnv()
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
-    env.step(np.array([0.02, 0.0, -0.10, 0, 0.1, 0, 0]))
-    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
-    observation, _, _, _  = env.step(np.array([0, 0, 0.04, 0, 0, 0, 10]))
+    env.step(np.array([0.0, 0.0, -0.06, 0, 0, 0, 0]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
+    observation, _, _, _  = env.step(np.array([0, 0, 0.04, 0, 0, 0, 20]))
     print("left wrench:", calculate_wrench(observation['tactile_left']))
     print("right wrench:", calculate_wrench(observation['tactile_right']))
     # observation, _, _, _  = env.step(np.array([0, 0, 0, 0, 0, 0.05, 10]))
-    env.step(np.array([0, 0, -0.04, 0, 0, 0, 10]))
+    env.step(np.array([0, 0, -0.04, 0, 0, 0, 20]))
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
     
     env.render()
