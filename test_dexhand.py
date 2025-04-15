@@ -43,6 +43,33 @@ def calculate_normal(P_field):
 
     return N_field
 
+def calculate_tangential(N_field, F_field):
+    """Calculate the tangential vector from normal and force vectors.
+    Args: N_field (np.ndarray): Normal vector of shape (3, 20, 20). F_field (np.ndarray): Force vector of shape (3, 20, 20).
+    Returns: np.ndarray: Tangential vector of shape (3, 20, 20).
+    """
+    Fn_field = np.sum(N_field * F_field, axis=1)[:, np.newaxis] * N_field
+    Ft_field = F_field - Fn_field
+    T_field = Ft_field / np.linalg.norm(Ft_field, axis=1)[:, np.newaxis]
+    
+    return T_field
+
+def calculate_KJ(N_field):
+    """Calculate the matrix multiplication K*J from the normal vector.
+    Args: N_field (np.ndarray): Normal vector of shape (3, 20, 20).
+    Returns: np.ndarray: Jacobian matrix of shape (6, 3).
+    """
+
+    KJ = np.zeros((6, 3))
+    KJ[0, 0] = N_field[0].sum()
+    KJ[1, 1] = N_field[1].sum()
+    KJ[2, 2] = N_field[2].sum()
+    KJ[3, 0] = -N_field[1].sum()
+    KJ[4, 1] = N_field[0].sum()
+    KJ[5, 2] = -N_field[0].sum()
+
+    return KJ
+
 def test_env():
     env = DexHandEnv()
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
