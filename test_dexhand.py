@@ -30,6 +30,19 @@ def calculate_wrench(tactile):
 
     return wrench
 
+def calculate_normal(P_field):
+    """Calculate the normal vector from tactile sensor data.
+    Args: tactile (np.ndarray): Tactile sensor data of shape (3, 20, 20).
+    Returns: np.ndarray: Normal vector of shape (3,), representing the x, y, z components.
+    """
+    import open3d as o3d
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(P_field)
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=8))
+    N_field = np.asarray(pcd.normals)
+
+    return N_field
+
 def test_env():
     env = DexHandEnv()
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
@@ -45,5 +58,5 @@ def test_env():
     env.render()
 
 if __name__ == '__main__':
-    test_env()
-    # test_in_GUI()
+    # test_env()
+    test_in_GUI()
