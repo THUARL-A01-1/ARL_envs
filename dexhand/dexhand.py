@@ -32,7 +32,8 @@ class DexHandEnv(gym.Env):
             "visual": gym.spaces.Box(low=0, high=255, shape=(3, 640, 480), dtype=np.uint8),
             "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
             "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
-            "joint": gym.spaces.Box(low=-1, high=1, shape=(self.mj_model.njnt,), dtype=np.float32)})  # Observation space
+            "joint": gym.spaces.Box(low=-1, high=1, shape=self.mj_data.qpos.shape, dtype=np.float32)}  # joint: 15D = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
+        )  # Observation space
         
         self.episode_buffer = {"visual": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
         self.episode_mode = "keyframe"  # Full mode for enhancing the display, keyframe mode for training

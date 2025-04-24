@@ -73,8 +73,11 @@ def calculate_KJ(N_field):
 def test_env():
     env = DexHandEnv()
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
-    env.step(np.array([0.0, 0.0, -0.06, 0, 0, 0, 0]))
+    print(env.mj_data.qpos)
+    env.step(np.array([0.0, 0.0, -0.05, 0, 0, 0, 0]))
+    print(env.mj_data.qpos)
     env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
+    print(env.mj_data.qpos)
     observation, _, _, _  = env.step(np.array([0, 0, 0.04, 0, 0, 0, 20]))
     print("left wrench:", calculate_wrench(observation['tactile_left']))
     print("right wrench:", calculate_wrench(observation['tactile_right']))
@@ -85,5 +88,5 @@ def test_env():
     env.render()
 
 if __name__ == '__main__':
-    # test_env()
-    test_in_GUI()
+    test_env()
+    # test_in_GUI()
