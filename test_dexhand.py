@@ -72,6 +72,7 @@ def calculate_KJ(N_field):
 
 def test_env():
     env = DexHandEnv()
+    _ = env.reset()
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
     print(env.mj_data.qpos)
     env.step(np.array([0.0, 0.0, -0.05, 0, 0, 0, 0]))

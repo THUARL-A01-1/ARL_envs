@@ -42,7 +42,6 @@ class DexHandEnv(gym.Env):
 
     def reset(self):
         self.mj_data = mujoco.MjData(self.mj_model)
-        self.mj_renderer = mujoco.Renderer(self.mj_model, 480, 640)
         return self.mj_renderer.render()
 
     def add_frame(self):
