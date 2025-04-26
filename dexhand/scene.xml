@@ -2,6 +2,10 @@
     <include file="dexhand/config.xml"/>
     <include file="dexhand/visual.xml"/>
     <include file="dexhand/dexhand.xml"/>
+    <!-- your obj file here -->
+    <asset>
+        <mesh file="dexhand_base.obj" name="hand_base_object"/>
+    </asset>
     <!-- The object -->
     <worldbody>
         <!-- cylinder -->
@@ -22,7 +26,7 @@
         <!-- hand_base -->
         <body name="object" pos="0.04 0.08 0" xyaxes="0 -1 0 0 0 1">
             <freejoint/>
-            <geom class="object" mesh="hand_base" mass="0.1" material="white"/>
+            <geom class="object" mesh="hand_base_object" mass="0.1" material="white"/>
         </body>
     </worldbody>
 </mujoco>

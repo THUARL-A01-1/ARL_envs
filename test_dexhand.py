@@ -89,5 +89,5 @@ def test_env():
     env.render()
 
 if __name__ == '__main__':
-    test_env()
-    # test_in_GUI()
+    # test_env()
+    test_in_GUI()
