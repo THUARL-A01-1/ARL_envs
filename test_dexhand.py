@@ -19,7 +19,6 @@ def calculate_wrench(tactile):
     Args: tactile (np.ndarray): Tactile sensor data of shape (3, 20, 20).
     Returns: np.ndarray: Wrench vector of shape (6,), representing the 3d force and 3d torque.
     """
-    fx, fy, fz = tactile[1, ...].sum(), tactile[2, ...].sum(), tactile[0, ...].sum()
     X, Y = np.meshgrid(np.arange(20), np.arange(20))
     X, Y = X.flatten() - 9.5, Y.flatten() - 9.5  # Center the coordinates around (9.5, 9.5), unit: mm
     fx, fy, fz = tactile[1, ...].flatten(), tactile[2, ...].flatten(), tactile[0, ...].flatten()
@@ -70,22 +69,66 @@ def calculate_KJ(N_field):
 
     return KJ
 
+def pre_grasp(env, target_pos):
+    """Pre-grasp the object by moving the hand to the target position.
+    Args: env (DexHandEnv): The DexHand environment. target_pos (np.ndarray): Target position of shape (7,).
+    """
+    # loosen the hand
+    env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
+    # move the hand to the target position
+    env.step(target_pos)
+
+def grasp(env):
+    """Grasp the object by applying a force to the hand.
+    Args: env (DexHandEnv): The DexHand environment.
+    """
+    # apply force and lift to a certain height
+    env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0.2, 20]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
+    # env.step(np.array([0, 0, 0, 0, 0, -0.2, -10]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
+    observation, _, _, _  = env.step(np.array([0, 0, 0.05, 0, 0, 0, 20]))
+
+    # remove the gravity compensation
+    body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
+    env.mj_model.body_gravcomp[body_id] = 0.0
+    
+    # measure the observation
+    observation, _, _, _  = env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
+
+    return observation
+
 def test_env():
     env = DexHandEnv()
     _ = env.reset()
-    env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
-    print(env.mj_data.qpos)
-    env.step(np.array([0.0, 0.0, -0.05, 0, 0, 0, 0]))
-    print(env.mj_data.qpos)
-    env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
-    print(env.mj_data.qpos)
-    observation, _, _, _  = env.step(np.array([0, 0, 0.04, 0, 0, 0, 20]))
-    print("left wrench:", calculate_wrench(observation['tactile_left']))
-    print("right wrench:", calculate_wrench(observation['tactile_right']))
-    # observation, _, _, _  = env.step(np.array([0, 0, 0, 0, 0, 0.05, 10]))
-    env.step(np.array([0, 0, -0.04, 0, 0, 0, 20]))
-    env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
+    pre_grasp(env, np.array([0.0, -0.06, -0.09, 0, 0.0, 0.02, 0]))
+    observation = grasp(env)
+    # TODO: calculate the contact angles of the fingertips
+    rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
+    rotation_left, rotation_right = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])
+
+    P_field = env.mj_data.geom_xpos[15:414]#, env.mj_data.geom_xpos[423:822]
+    F_field = env.mj_data.sensordata[:1200].reshape(3, -1).T#, env.mj_data.sensordata[1200:]
+    F_field = np.roll(F_field, -1, axis=1)
+    N_field = F_field / (0.001 + np.linalg.norm(F_field, axis=1)[:, np.newaxis])
+    for i in range(env.mj_data.ncon):
+        geom_id = env.mj_data.contact[i].geom1 - 15
+        if geom_id >= 0 and geom_id < 400:
+            N_field[geom_id] = env.mj_data.contact[i].frame[:3]
+    N_field = N_field @ rotation_hand.T @ rotation_left
+    Fn_field = np.sum(N_field * F_field, axis=1)[:, np.newaxis] * N_field
+    Ft_field = F_field - Fn_field
     
+    F_mask = np.linalg.norm(Fn_field, axis=1) > 0.1
+    ratio = np.linalg.norm(Ft_field, axis=1) / np.linalg.norm(Fn_field, axis=1)
+
+    print(f"Force: {sum(F_field[:, 0])}, {sum(F_field[:, 1])}, {sum(F_field[:, 2])}")
+    print(f"num_contact: {sum(F_mask)}")
+    print(f"Ratio: {sum(ratio[F_mask]) / sum(F_mask)}")
+    print(f"score: {sum(ratio[F_mask]) / sum(F_field[:, 0])}")
+
+
     env.render()
 
 if __name__ == '__main__':

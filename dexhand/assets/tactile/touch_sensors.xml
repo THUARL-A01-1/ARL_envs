@@ -2,7 +2,7 @@
     <sensor>
         <plugin name="touch_right" plugin="mujoco.sensor.touch_grid" objtype="site" objname="right_pad_site">
             <config key="size" value="20 20"/>
-            <config key="fov" value="18 18"/>
+            <config key="fov" value="11.5 11.5"/>
             <config key="gamma" value="0"/>
             <config key="nchannel" value="3"/>
         </plugin>
@@ -10,7 +10,7 @@
     <sensor>
         <plugin name="touch_left" plugin="mujoco.sensor.touch_grid" objtype="site" objname="left_pad_site">
             <config key="size" value="20 20"/>
-            <config key="fov" value="18 18"/>
+            <config key="fov" value="11.5 11.5"/>
             <config key="gamma" value="0"/> 
             <config key="nchannel" value="3"/>
         </plugin>

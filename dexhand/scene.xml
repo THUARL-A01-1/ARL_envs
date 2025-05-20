@@ -9,9 +9,9 @@
     <!-- The object -->
     <worldbody>
         <!-- cylinder -->
-        <!-- <body name="object" pos="0.0 -0.0 0.03" zaxis="0 1 0">
+        <!-- <body name="object" pos="0.0 -0.0 0.03" zaxis="0 0 1">
             <freejoint/>
-            <geom class="object" type="cylinder" size="0.03 0.06" mass="0.3" rgba=".5 .5 0 1"/>
+            <geom class="object" type="cylinder" size="0.05 0.06" mass="0.3" rgba=".5 .5 0 1"/>
         </body> -->
         <!-- box -->
         <!-- <body name="object" pos="0.0 0.0 0.02">
@@ -19,14 +19,14 @@
             <geom class="collision" type="box" size="0.02 0.02 0.02" mass="0.3" friction="1.0" rgba="0.5 0.5 0 1"/>
         </body> -->
         <!-- bar -->
-        <!-- <body name="object" pos="0.0 -0.06 0.03">
+        <body name="object" pos="0.0 -0.06 0.03" gravcomp="1">
             <freejoint name="object"/>
             <geom class="object" type="box" size="0.02 0.1 0.03" mass="0.3" rgba="0.5 0.5 0 1"/>
-        </body> -->
+        </body>
         <!-- hand_base -->
-        <body name="object" pos="0.04 0.08 0" xyaxes="0 -1 0 0 0 1">
+        <!-- <body name="object" pos="0.04 0.08 0" xyaxes="0 -1 0 0 0 1">
             <freejoint/>
             <geom class="object" mesh="hand_base_object" mass="0.1" material="white"/>
-        </body>
+        </body> -->
     </worldbody>
 </mujoco>

@@ -16,7 +16,7 @@ def edit_pad_collisions(path, coordinates, num_points, scale, size_x, size_y, si
             # f.write(f'\t<site name="right_tactile_site_{i}" type="sphere" size="0.0005" rgba="1 0 0 0.1"/>\n')  # define the site for touch sensor
             # f.write(f'\t<joint type="slide" axis="0 0 1" range="-0.01 0.01" damping="1" solreflimit="1000 0.05"/>\n')
             # f.write(f'\t<geom class="visual" type="box" pos="{pos_x} {pos_y} {pos_z}" size="0.0005 0.0005 0.005" rgba="{rgb} {rgb} {rgb} 1"/>\n')  # define the pad visualization
-            f.write(f'\t<geom class="pad" type="sphere" pos="{pos_x} {pos_y} {pos_z}" size="0.0005 0.0005 0.0005" rgba="{rgb} {rgb} {rgb} 0"/>\n')  # define the pad collision
+            f.write(f'\t<geom class="pad" type="sphere" pos="{pos_x} {pos_y} {pos_z}" size="0.0005 0.0005 0.0005" rgba="{rgb} {rgb} {rgb} 1"/>\n')  # define the pad collision
             # f.write(f'</body>\n')
             # f.write(f'<geom class="pad" type="box" pos="{pos_x} {pos_y} {pos_z}" size="{size_x} {size_y} {size_z}" rgba="{rgb} {rgb} {rgb} 1"/>\n')  # define the pad collision
             # f.write(f'<geom class="visual" type="box" pos="{pos_x} {pos_y} {pos_z}" size="{size_x} {size_y} {size_z}" rgba="{rgb} {rgb} {rgb} 0.5"/>\n')  # define the pad visualization
@@ -46,12 +46,12 @@ def main():
     args = parse_arguments()
 
     # Load coordinates from the fixed CSV file
-    coordinates = pd.read_csv("./tactile_envs/dexhand/tactile/tactile_markers.csv", header=None)
+    coordinates = pd.read_csv("./dexhand/assets/tactile/tactile_markers.csv", header=None)
     num_points = args.num_rows * args.num_cols
 
     # Paths are hardcoded as requested
-    path_left = "./tactile_envs/dexhand/tactile/left_pad_collisions.xml"
-    path_right = "./tactile_envs/dexhand/tactile/right_pad_collisions.xml"
+    path_left = "./dexhand/assets/tactile/left_pad_collisions.xml"
+    path_right = "./dexhand/assets/tactile/right_pad_collisions.xml"
 
     # Print the settings used
     if args.num_rows != args.num_cols:
@@ -93,7 +93,7 @@ def main():
 </mujoco>"""
 
     # Save the sensor configuration file
-    with open("./tactile_envs/dexhand/tactile/touch_sensors.xml", "w") as f:
+    with open("./dexhand/assets/tactile/touch_sensors.xml", "w") as f:
         f.write(touch_sensor_string)
     
     print("pad collision and touch sensor are successfully generated.")
