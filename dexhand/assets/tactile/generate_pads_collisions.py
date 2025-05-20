@@ -16,7 +16,7 @@ def edit_pad_collisions(path, coordinates, num_points, scale, size_x, size_y, si
             # f.write(f'\t<site name="right_tactile_site_{i}" type="sphere" size="0.0005" rgba="1 0 0 0.1"/>\n')  # define the site for touch sensor
             # f.write(f'\t<joint type="slide" axis="0 0 1" range="-0.01 0.01" damping="1" solreflimit="1000 0.05"/>\n')
             # f.write(f'\t<geom class="visual" type="box" pos="{pos_x} {pos_y} {pos_z}" size="0.0005 0.0005 0.005" rgba="{rgb} {rgb} {rgb} 1"/>\n')  # define the pad visualization
-            f.write(f'\t<geom class="pad" type="sphere" pos="{pos_x} {pos_y} {pos_z}" size="0.0005 0.0005 0.0005" rgba="{rgb} {rgb} {rgb} 1"/>\n')  # define the pad collision
+            f.write(f'\t<geom class="pad" name="right_pad_collisions_{i}" type="sphere" pos="{pos_x} {pos_y} {pos_z}" size="0.0005 0.0005 0.0005" rgba="{rgb} {rgb} {rgb} 1"/>\n')  # define the pad collision
             # f.write(f'</body>\n')
             # f.write(f'<geom class="pad" type="box" pos="{pos_x} {pos_y} {pos_z}" size="{size_x} {size_y} {size_z}" rgba="{rgb} {rgb} {rgb} 1"/>\n')  # define the pad collision
             # f.write(f'<geom class="visual" type="box" pos="{pos_x} {pos_y} {pos_z}" size="{size_x} {size_y} {size_z}" rgba="{rgb} {rgb} {rgb} 0.5"/>\n')  # define the pad visualization
@@ -68,7 +68,7 @@ def main():
         print("---------------------------------------------------")
 
     # Create XML files for left and right pads
-    edit_pad_collisions(path=path_left, coordinates=coordinates, num_points=num_points, scale=args.scale, size_x=args.size_x, size_y=args.size_y, size_z=args.size_z)
+    # edit_pad_collisions(path=path_left, coordinates=coordinates, num_points=num_points, scale=args.scale, size_x=args.size_x, size_y=args.size_y, size_z=args.size_z)
 
     edit_pad_collisions(path=path_right, coordinates=coordinates, num_points=num_points, scale=args.scale, size_x=args.size_x, size_y=args.size_y, size_z=args.size_z)
 
@@ -77,7 +77,7 @@ def main():
     <sensor>
         <plugin name="touch_right" plugin="mujoco.sensor.touch_grid" objtype="site" objname="right_pad_site">
             <config key="size" value="{args.num_rows} {args.num_rows}"/>
-            <config key="fov" value="18 18"/>
+            <config key="fov" value="11.5 11.5"/>
             <config key="gamma" value="0"/>
             <config key="nchannel" value="3"/>
         </plugin>
@@ -85,7 +85,7 @@ def main():
     <sensor>
         <plugin name="touch_left" plugin="mujoco.sensor.touch_grid" objtype="site" objname="left_pad_site">
             <config key="size" value="{args.num_rows} {args.num_rows}"/>
-            <config key="fov" value="18 18"/>
+            <config key="fov" value="11.5 11.5"/>
             <config key="gamma" value="0"/> 
             <config key="nchannel" value="3"/>
         </plugin>
