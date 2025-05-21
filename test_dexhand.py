@@ -76,7 +76,8 @@ def pre_grasp(env, target_pos):
     # loosen the hand
     env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
     # move the hand to the target position
-    env.step(target_pos)
+    env.step(np.array([0.0, -0.03, -0.02, 0, 0, 0, 0]))  # translation
+    env.step(np.array([0.0, 0, 0, 0, 0, 0.02, 0]))  # rotation
 
 def grasp(env):
     """Grasp the object by applying a force to the hand.
@@ -95,8 +96,9 @@ def post_grasp(env):
     """Post-grasp the object by moving the hand, simulating the disturbance.
     Args: env (DexHandEnv): The DexHand environment.
     """
-    env.step(np.array([0, 0, 0.05, 0, 0, 0, 20]))
-    env.step(np.array([0, 0, -0.05, 0, 0, 0, 20]))
+    for i in range(5):
+        env.step(np.array([0, 0, 0.05, 0, 0, 0, 20]))
+        env.step(np.array([0, 0, -0.05, 0, 0, 0, 20]))
 
 def test_env():
     # initialize the environment
@@ -107,8 +109,7 @@ def test_env():
     geom_idx = [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)]
     
     # pre-grasp the object
-    pre_grasp(env, np.array([0.0, -0.04, -0.09, 0, 0, 0, 0]))
-    pre_grasp(env, np.array([0.0, 0, 0, 0, 0, 0.02, 0]))
+    pre_grasp(env, np.array([0.0, 0.0, 0.0, 0, 0, 0, 1]))
     
     # grasp the object
     grasp(env)
