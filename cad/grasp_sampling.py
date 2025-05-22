@@ -4,7 +4,7 @@ Step 1: 从点云中采样一个点作为抓取点p
 Step 2: 从球面空间中采样一个方向作为抓取平面n
 Step 3: 采样一维距离作为抓取深度d
 """
-import collision_detection
+import cad.collision_detection
 import copy
 import matplotlib.pyplot as plt
 import numpy as np
@@ -106,6 +106,34 @@ def sample_grasp_depth(num_samples=1, min_depth=-5e-2, max_depth=5e-2):
     
     return grasp_depths
 
+def sample_grasp_collision(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper):
+    """
+    Sample grasp collision detection.
+    
+    Args:
+        point_cloud (o3d.geometry.PointCloud): The input point cloud.
+        grasp_points (list): A list of sampled grasp points.
+        grasp_normals (list): A list of sampled grasp normals.
+        grasp_angles (list): A list of sampled grasp angles.
+        grasp_depths (list): A list of sampled grasp depths.
+        initial_gripper (o3d.geometry.TriangleMesh): The initial gripper geometry.
+    
+    Returns:
+        list: A list of collision results for each grasp.
+    """
+    grasp_collisions = []
+    
+    for i in range(len(grasp_points)):
+        gripper_copy = copy.deepcopy(initial_gripper)
+        gripper_copy.translate(grasp_points[i])  # translate to grasp point
+        rot, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
+        gripper_copy.rotate(rot.as_matrix(), center=grasp_points[i])  # rotate to grasp normal
+        gripper_copy.translate(grasp_normals[i] * grasp_depths[i])  # translate along the normal direction
+        collision = cad.collision_detection.distance_collision_detection(gripper_copy, point_cloud)
+        grasp_collisions.append(collision)
+    
+    return grasp_collisions
+
 def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper):
     """
     Visualize the grasp points, normals, and depths on the point cloud.
@@ -136,7 +164,7 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
         rot, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
         gripper_copy.rotate(rot.as_matrix(), center=grasp_points[i])  # rotate to grasp normal
         gripper_copy.translate(grasp_normals[i] * grasp_depths[i])  # translate along the normal direction
-        collision = collision_detection.distance_collision_detection(gripper_copy, point_cloud_copy)
+        collision = cad.collision_detection.distance_collision_detection(gripper_copy, point_cloud_copy)
         if collision:
             gripper_copy.paint_uniform_color([0.7, 0.7, 0])  # Yellow color for collision
         else:
@@ -160,13 +188,14 @@ def main():
         return
     
     # Sample grasp points, normals, and depths
-    num_samples = 500
+    num_samples = 50
     try:
         grasp_points = sample_grasp_point(point_cloud, num_samples)
         grasp_normals = sample_grasp_normal(num_samples)
         grasp_angles = sample_grasp_angle(num_samples)
         grasp_depths = sample_grasp_depth(num_samples)
-        print(f"Sampled {num_samples} grasps.")
+        grasp_collisions = sample_grasp_collision(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initialize_gripper())
+        print(f"Sampled {num_samples} grasps, with {sum(grasp_collisions)} collisions detected.")
     except Exception as e:
         print(f"Error sampling grasps: {e}")
         return
@@ -174,10 +203,12 @@ def main():
     # Visualize the sampled grasps
     try:
         initial_gripper = initialize_gripper()
-        visualize_grasp(point_cloud, grasp_points[::100], grasp_normals[::100], grasp_angles[::100], grasp_depths[::100], initial_gripper)
+        visualize_grasp(point_cloud, grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)], initial_gripper)
     except Exception as e:
         print(f"Error visualizing grasps: {e}")
         return
+    
+    return grasp_points, grasp_normals, grasp_angles, grasp_depths, grasp_collisions
 
 if __name__ == "__main__":
     main()

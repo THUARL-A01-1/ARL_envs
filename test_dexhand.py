@@ -1,3 +1,4 @@
+import cad.grasp_sampling
 import cv2
 import os
 import matplotlib.pyplot as plt
@@ -5,6 +6,7 @@ import numpy as np
 import mujoco    
 from mujoco import viewer
 from dexhand.dexhand import DexHandEnv
+from scipy.spatial.transform import Rotation as R
 
 def test_in_GUI():
     model_path = os.path.join('dexhand', 'scene.xml')
@@ -69,23 +71,24 @@ def calculate_KJ(N_field):
 
     return KJ
 
-def pre_grasp(env, target_pos):
+def pre_grasp(env, point, normal, depth):
     """Pre-grasp the object by moving the hand to the target position.
-    Args: env (DexHandEnv): The DexHand environment. target_pos (np.ndarray): Target position of shape (7,).
+    Args: env (DexHandEnv): The DexHand environment. point, normal, depth: Target position of shape (3, 3, 1).
+    Note: translation: qpos[0:3], rotation: qpos[3:6]
     """
-    # loosen the hand
-    env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
-    # move the hand to the target position
-    env.step(np.array([0.0, -0.03, -0.02, 0, 0, 0, 0]))  # translation
-    env.step(np.array([0.0, 0, 0, 0, 0, 0.02, 0]))  # rotation
+    translation = point + normal * depth
+    rot, _ = R.align_vectors([normal], [[0, 0, 1]])
+    rotation = rot.as_euler('xyz', degrees=False)
+    env.mj_data.qpos[0:3] = translation
+    env.mj_data.qpos[3:6] = rotation
+    env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
 
 def grasp(env):
-    """Grasp the object by applying a force to the hand.
+    """Grasp the object by applying a force to the hand, and then gravity.
     Args: env (DexHandEnv): The DexHand environment.
     """
-    # apply force and lift to a certain height
+    # apply grasping force
     env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
-    env.step(np.array([0, 0, 0.05, 0, 0, 0, 20]))
 
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
@@ -96,7 +99,7 @@ def post_grasp(env):
     """Post-grasp the object by moving the hand, simulating the disturbance.
     Args: env (DexHandEnv): The DexHand environment.
     """
-    for i in range(5):
+    for i in range(1):
         env.step(np.array([0, 0, 0.05, 0, 0, 0, 20]))
         env.step(np.array([0, 0, -0.05, 0, 0, 0, 20]))
 
@@ -108,8 +111,11 @@ def test_env():
     rotation_left, rotation_right = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])
     geom_idx = [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)]
     
+    grasp_points, grasp_normals, grasp_angles, grasp_depths, grasp_collisions = cad.grasp_sampling.main()
+    grasp_points, grasp_normals, grasp_depths = grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)]
+
     # pre-grasp the object
-    pre_grasp(env, np.array([0.0, 0.0, 0.0, 0, 0, 0, 1]))
+    pre_grasp(env, grasp_points[0], grasp_normals[0], grasp_depths[0])
     
     # grasp the object
     grasp(env)
