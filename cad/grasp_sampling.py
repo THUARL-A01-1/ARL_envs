@@ -4,13 +4,38 @@ Step 1: 从点云中采样一个点作为抓取点p
 Step 2: 从球面空间中采样一个方向作为抓取平面n
 Step 3: 采样一维距离作为抓取深度d
 """
+import collision_detection
+import copy
+import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
-import os
-import copy
-import math
-import random
-import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation as R
+
+
+def initialize_gripper():
+    """
+    Initialize the gripper geometry.
+    
+    Returns:
+        list: A list of Open3D geometries representing the gripper.
+    """
+    handle = o3d.geometry.TriangleMesh.create_cylinder(radius=1e-3, height=5e-2)
+    hinge = o3d.geometry.TriangleMesh.create_cylinder(radius=1e-3, height=2e-1)
+    finger_left, finger_right = copy.deepcopy(handle), copy.deepcopy(handle)
+    handle.translate([0, 0, 5e-2])
+    handle.paint_uniform_color([0.7, 0.7, 0.7])
+    hinge.rotate(o3d.geometry.get_rotation_matrix_from_xyz([0, np.pi / 2, 0]), center=np.zeros(3))
+    hinge.translate([0, 0, 5e-2 / 2])
+    finger_left.translate([-2e-1 / 2, 0, 0])
+    finger_right.translate([2e-1 / 2, 0, 0])
+
+    initial_gripper = o3d.geometry.TriangleMesh()
+    initial_gripper += handle
+    initial_gripper += hinge
+    initial_gripper += finger_left
+    initial_gripper += finger_right
+
+    return initial_gripper
 
 def sample_grasp_point(point_cloud, num_samples=1):
     """
@@ -65,7 +90,7 @@ def sample_grasp_angle(num_samples=1):
     
     return angles
 
-def sample_grasp_depth(num_samples=1, min_depth=0.01, max_depth=0.1):
+def sample_grasp_depth(num_samples=1, min_depth=-5e-2, max_depth=5e-2):
     """
     Sample grasp depths from a uniform distribution.
     
@@ -81,7 +106,7 @@ def sample_grasp_depth(num_samples=1, min_depth=0.01, max_depth=0.1):
     
     return grasp_depths
 
-def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths):
+def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper):
     """
     Visualize the grasp points, normals, and depths on the point cloud.
     
@@ -93,12 +118,12 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
         grasp_depths (list): A list of sampled grasp depths.
     """
     # Create a copy of the point cloud for visualization
-    vis_point_cloud = copy.deepcopy(point_cloud)
+    point_cloud_copy = copy.deepcopy(point_cloud)
     
     # 在点云中标出sphere: 抓取点
     spheres = []
     for i in range(len(grasp_points)):
-        sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.005)
+        sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.002)
         sphere.translate(grasp_points[i])
         sphere.paint_uniform_color([1, 0, 0])  # Red color for grasp points
         spheres.append(sphere)
@@ -106,28 +131,20 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
     # 在点云中标出gripper: 抓取法线, 角度和深度
     grippers = []
     for i in range(len(grasp_normals)):
-        handle = o3d.geometry.TriangleMesh.create_cylinder(radius=1e-3, height=5e-3)
-        handle.translate([0, 0, 5e-3/2])  # 底部在原点
-        handle.paint_uniform_color([0.7, 0.7, 0.7])
-        
-
-        arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=0.002, cone_radius=0.005, cone_height=0.01)
-        arrow.translate(grasp_points[i])
-        arrow.rotate(o3d.geometry.get_rotation_matrix_from_xyz(grasp_normals[i]))
-        arrow.paint_uniform_color([0, 1, 0])  # Green color for grasp normals
-        grippers.append(arrow)
-    
-    # Create cylinders for grasp depths
-    cylinders = []
-    for i in range(len(grasp_depths)):
-        cylinder = o3d.geometry.TriangleMesh.create_cylinder(radius=0.002, height=grasp_depths[i])
-        cylinder.translate(grasp_points[i] + np.array(grasp_normals[i]) * (grasp_depths[i] / 2))
-        cylinder.rotate(o3d.geometry.get_rotation_matrix_from_xyz(grasp_normals[i]))
-        cylinder.paint_uniform_color([0, 0, 1])  # Blue color for grasp depths
-        cylinders.append(cylinder)
+        gripper_copy = copy.deepcopy(initial_gripper)
+        gripper_copy.translate(grasp_points[i])  # translate to grasp point
+        rot, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
+        gripper_copy.rotate(rot.as_matrix(), center=grasp_points[i])  # rotate to grasp normal
+        gripper_copy.translate(grasp_normals[i] * grasp_depths[i])  # translate along the normal direction
+        collision = collision_detection.distance_collision_detection(gripper_copy, point_cloud_copy)
+        if collision:
+            gripper_copy.paint_uniform_color([0.7, 0.7, 0])  # Yellow color for collision
+        else:
+            gripper_copy.paint_uniform_color([0, 1, 0])  # Green color for no collision
+        grippers.append(gripper_copy)
     
     # Combine all geometries for visualization
-    geometries = [vis_point_cloud] + spheres + grippers + cylinders
+    geometries = [point_cloud_copy] + spheres + grippers
     
     # Visualize the combined geometries
     o3d.visualization.draw_geometries(geometries)
@@ -143,7 +160,7 @@ def main():
         return
     
     # Sample grasp points, normals, and depths
-    num_samples = 5
+    num_samples = 500
     try:
         grasp_points = sample_grasp_point(point_cloud, num_samples)
         grasp_normals = sample_grasp_normal(num_samples)
@@ -156,7 +173,8 @@ def main():
 
     # Visualize the sampled grasps
     try:
-        visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths)
+        initial_gripper = initialize_gripper()
+        visualize_grasp(point_cloud, grasp_points[::100], grasp_normals[::100], grasp_angles[::100], grasp_depths[::100], initial_gripper)
     except Exception as e:
         print(f"Error visualizing grasps: {e}")
         return
