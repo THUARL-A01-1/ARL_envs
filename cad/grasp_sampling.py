@@ -208,7 +208,7 @@ def main():
         print(f"Error visualizing grasps: {e}")
         return
     
-    return grasp_points, grasp_normals, grasp_angles, grasp_depths, grasp_collisions
+    return [grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)]]
 
 if __name__ == "__main__":
     main()
