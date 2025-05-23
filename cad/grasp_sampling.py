@@ -19,15 +19,15 @@ def initialize_gripper():
     Returns:
         list: A list of Open3D geometries representing the gripper.
     """
-    handle = o3d.geometry.TriangleMesh.create_cylinder(radius=1e-3, height=5e-2)
-    hinge = o3d.geometry.TriangleMesh.create_cylinder(radius=1e-3, height=2e-1)
+    handle = o3d.geometry.TriangleMesh.create_cylinder(radius=1e-3, height=8e-2)
+    hinge = o3d.geometry.TriangleMesh.create_cylinder(radius=1e-3, height=1.4e-1)
     finger_left, finger_right = copy.deepcopy(handle), copy.deepcopy(handle)
-    handle.translate([0, 0, 5e-2])
+    handle.translate([0, 0, 8e-2])
     handle.paint_uniform_color([0.7, 0.7, 0.7])
     hinge.rotate(o3d.geometry.get_rotation_matrix_from_xyz([0, np.pi / 2, 0]), center=np.zeros(3))
-    hinge.translate([0, 0, 5e-2 / 2])
-    finger_left.translate([-2e-1 / 2, 0, 0])
-    finger_right.translate([2e-1 / 2, 0, 0])
+    hinge.translate([0, 0, 8e-2 / 2])
+    finger_left.translate([-1.4e-1 / 2, 0, 0])
+    finger_right.translate([1.4e-1 / 2, 0, 0])
 
     initial_gripper = o3d.geometry.TriangleMesh()
     initial_gripper += handle
@@ -90,7 +90,7 @@ def sample_grasp_angle(num_samples=1):
     
     return angles
 
-def sample_grasp_depth(num_samples=1, min_depth=-5e-2, max_depth=5e-2):
+def sample_grasp_depth(num_samples=1, min_depth=-1e-1, max_depth=2e-2):
     """
     Sample grasp depths from a uniform distribution.
     
@@ -158,7 +158,7 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
     
     # 在点云中标出gripper: 抓取法线, 角度和深度
     grippers = []
-    for i in range(len(grasp_normals)):
+    for i in range(1):
         gripper_copy = copy.deepcopy(initial_gripper)
         gripper_copy.translate(grasp_points[i])  # translate to grasp point
         rot, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])

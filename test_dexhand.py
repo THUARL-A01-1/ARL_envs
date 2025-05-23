@@ -76,11 +76,13 @@ def pre_grasp(env, point, normal, depth):
     Args: env (DexHandEnv): The DexHand environment. point, normal, depth: Target position of shape (3, 3, 1).
     Note: translation: qpos[0:3], rotation: qpos[3:6]
     """
-    translation = point + normal * depth
+    translation = point + normal * (depth + 0.15)  # 0.15 is the offset from the base mount to the center of the fingers
     rot, _ = R.align_vectors([normal], [[0, 0, 1]])
     rotation = rot.as_euler('xyz', degrees=False)
     env.mj_data.qpos[0:3] = translation
-    env.mj_data.qpos[3:6] = rotation
+    env.mj_data.qpos[3] = rotation[0]
+    env.mj_data.qpos[4] = rotation[1]
+    env.mj_data.qpos[5] = rotation[2]
     env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
 
 def grasp(env):
@@ -88,6 +90,8 @@ def grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     # apply grasping force
+    env.step(np.array([0, 0, 0, 0, 0, 0, 5]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
     env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
 
     # remove the gravity compensation
