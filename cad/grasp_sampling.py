@@ -161,7 +161,7 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
     
     # 在点云中标出gripper: 抓取法线, 角度和深度
     grippers = [initial_gripper]
-    for i in range(1):
+    for i in range(len(grasp_points)):
         gripper_copy = copy.deepcopy(initial_gripper)
         R_to_normal, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
         R_about_normal = R.from_rotvec(grasp_angles[i] * grasp_normals[i])
@@ -184,10 +184,10 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
     # Visualize the combined geometries
     o3d.visualization.draw_geometries(geometries)
 
-def main(num_samples=500):
+def main(num_samples=500, OBJECT_ID="000"):
     # Load the point cloud
     try:
-        file_path = "cad/assets/dexhand_base.ply"  # Replace with your point cloud file path
+        file_path = f"cad/assets/{OBJECT_ID}/downsampled.ply"  # Replace with your point cloud file path
         point_cloud = o3d.io.read_point_cloud(file_path)
         print(f"Loaded point cloud with {len(point_cloud.points)} points.")
     except Exception as e:
@@ -206,13 +206,13 @@ def main(num_samples=500):
         print(f"Error sampling grasps: {e}")
         return
 
-    # # Visualize the sampled grasps
-    # try:
-    #     initial_gripper = initialize_gripper()
-    #     visualize_grasp(point_cloud, grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)], initial_gripper)
-    # except Exception as e:
-    #     print(f"Error visualizing grasps: {e}")
-    #     return
+    # Visualize the sampled grasps
+    try:
+        initial_gripper = initialize_gripper()
+        visualize_grasp(point_cloud, grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)], initial_gripper)
+    except Exception as e:
+        print(f"Error visualizing grasps: {e}")
+        return
     
     return grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)]
 

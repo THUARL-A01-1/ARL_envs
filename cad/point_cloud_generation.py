@@ -33,12 +33,14 @@ def downsample_mesh(mesh, voxel_size=0.01):
     Returns:
         o3d.geometry.TriangleMesh: The downsampled mesh.
     """
+    # 减少mesh的面数
+    downsampled_mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=10000)
     # 将 mesh 转为点云
-    point_cloud = mesh.sample_points_uniformly(number_of_points=len(mesh.vertices))
+    point_cloud = downsampled_mesh.sample_points_uniformly(number_of_points=len(mesh.vertices))
     # 体素下采样
     downsampled_point_cloud = point_cloud.voxel_down_sample(voxel_size=voxel_size)
     
-    return downsampled_point_cloud
+    return downsampled_mesh, downsampled_point_cloud
 
 def visualize(object):
     """
@@ -54,23 +56,25 @@ def visualize(object):
     except Exception as e:
         print(f"Error visualizing object: {e}")
 
-def save_point_cloud(downsampled_point_cloud, file_path):
+def save_mesh_and_point_cloud(downsampled_mesh, downsampled_point_cloud, downsampled_mesh_file_path, downsampled_point_cloud_file_path):
     """
-    Save the downsampled point cloud to a file.
+    Save the downsampled mesh and point cloud to two files.
 
     Args:
         downsampled_point_cloud (o3d.geometry.PointCloud): The downsampled point cloud.
         file_path (str): Path to save the point cloud.
     """
     try:
-        o3d.io.write_point_cloud(file_path, downsampled_point_cloud)
+        o3d.io.write_triangle_mesh(downsampled_mesh_file_path, downsampled_mesh)
+        o3d.io.write_point_cloud(downsampled_point_cloud_file_path, downsampled_point_cloud)
     except Exception as e:
         print(f"Error saving point cloud: {e}")
 
-def main():
+def main(OBJECT_ID="000"):
     # Define the file paths
-    mesh_file_path = "cad/assets/dexhand_base.obj"  # Replace with your mesh file path
-    downsampled_point_cloud_file_path = "cad/assets/dexhand_base.ply"  # Replace with your desired output path
+    mesh_file_path = f"cad/assets/{OBJECT_ID}/textured.obj"  # Replace with your mesh file path
+    downsampled_mesh_file_path = f"cad/assets/{OBJECT_ID}/downsampled_mesh.obj"  # Replace with your desired output path
+    downsampled_point_cloud_file_path = f"cad/assets/{OBJECT_ID}/downsampled.ply"  # Replace with your desired output path
 
     # Load the mesh
     mesh = load_mesh(mesh_file_path)
@@ -79,14 +83,16 @@ def main():
     print(f"Loaded mesh with {len(mesh.vertices)} vertices and {len(mesh.triangles)} triangles.")
     
     # Downsample the mesh
-    downsampled_point_cloud = downsample_mesh(mesh, voxel_size=0.01)
+    downsampled_mesh, downsampled_point_cloud = downsample_mesh(mesh, voxel_size=0.01)
     print(f"Downsampled point cloud has {len(downsampled_point_cloud.points)} points.")
 
     # Visualize the downsampled point cloud
     visualize(downsampled_point_cloud)
 
-    # Save the downsampled point cloud
-    save_point_cloud(downsampled_point_cloud, downsampled_point_cloud_file_path)
+    # Save the downsampled mesh and point cloud
+    save_mesh_and_point_cloud(downsampled_mesh, downsampled_point_cloud, downsampled_mesh_file_path, downsampled_point_cloud_file_path)
 
 if __name__ == "__main__":
-    main()
+    for OBJECT_ID in ["000", "001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015", "016", "017", "018", "019", "020", "021", "022", "023", "024", "025", "026", "027", "028", "029", "030", "031", "032", "033", "034", "035", "036", "037", "038", "039", "040", "041", "042", "043", "044", "045", "046", "047", "048", "049", "050", "051", "052", "053", "054", "055", "056", "057", "058", "059", "060", "061", "062", "063", "064", "065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088"]:
+        print(f"Processing object {OBJECT_ID}...")
+        main(OBJECT_ID=OBJECT_ID)

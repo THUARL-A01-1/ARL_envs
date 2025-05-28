@@ -9,6 +9,7 @@ from mujoco import viewer
 from dexhand.dexhand import DexHandEnv
 from scipy.spatial.transform import Rotation as R
 
+OBJECT_ID = "006"
 
 def pre_grasp(env, point, normal, angle, depth):
     """Pre-grasp the object by moving the hand to the target position.
@@ -91,8 +92,9 @@ def measure(env):
         # Step 4: 额外计算用于抵抗重力的竖直力
         F_field_world = F_field @ (rotation_hand @ rotation.T)   # 将F矩阵转换到世界坐标系
         Fv = np.sum(-F_field_world[:, 2])
+        F_mask = np.linalg.norm(F_field, axis=1) > 0.1
 
-        measurement.append({"P_field": P_field.tolist(), "N_field": N_field.tolist(), "N_field_finger": N_field_finger.tolist(), "Fn_field": Fn_field.tolist(), "Ft_field": Ft_field.tolist(), "Fv": Fv.tolist()})
+        measurement.append({"P_field": P_field.tolist(), "N_field": N_field.tolist(), "N_field_finger": N_field_finger.tolist(), "Fn_field": Fn_field.tolist(), "Ft_field": Ft_field.tolist(), "Fv": Fv.tolist(), "F_mask": F_mask.tolist()})
 
     return measurement
 
@@ -150,8 +152,25 @@ def calculate_our_metric(measurement):
     metric = np.zeros(num_fingers)
     Fv = np.zeros(num_fingers)
     for i in range(num_fingers):
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
-        ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
+        
+        F_field = np.array(measurement[i]["Ft_field"]) + np.array(measurement[i]["Fn_field"])
+        F_field_corrected = np.zeros_like(F_field)
+        for j in range(400):
+            f = F_field[j]
+            if np.linalg.norm(f) > 0.02:
+                dx, dy = j % 20 - 10, j // 20 - 10
+                t = np.array([-dy, dx, 0]) / np.sqrt(dx ** 2 + dy ** 2 + 1e-6)
+                sin = -np.sqrt(dx ** 2 + dy ** 2 + 1e-6) / 35
+                cos = np.sqrt(1 - sin ** 2)
+                f_parallel = np.dot(f, t) * t
+                f_vertical = f - f_parallel
+                f_corrected = f_parallel + cos * f_vertical + sin * np.cross(t, f_vertical)
+                F_field_corrected[j] = f_corrected
+        F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
+        ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
+
+        # F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
+        # ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
         Fv[i] = measurement[i]["Fv"]
         print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
@@ -162,10 +181,12 @@ def simulate():
     # initialize the environment
     env = DexHandEnv()
     _ = env.reset()
+    if not os.path.exists(f"results/{OBJECT_ID}"):
+        os.makedirs(f"results/{OBJECT_ID}")
 
     # sample grasps from the CAD model
     try:
-        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=5000)
+        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=500, OBJECT_ID=OBJECT_ID)
     except Exception as e:
         print(f"未生成无碰撞抓取, Error sampling grasps: {e}")
         return
@@ -193,10 +214,10 @@ def simulate():
             "contact_result": contact_result,
             "grasp_result": grasp_result,
             "measurement": measurement}
-        with open("results/grasp_results.json", "a", encoding="utf-8") as f:
+        with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        # env.render()
+        env.render()
 
     
 def preprocess_results():
@@ -228,23 +249,28 @@ def preprocess_results():
 
 
 def validate_result():
-    data = np.load(("results/grasp_metrics.npz"))
+    data = np.load((f"results/{OBJECT_ID}/grasp_metrics.npz"))
     grasp_results, our_metrics, FC_metrics, distances, Fvs = data['grasp_results'], data['our_metrics'], data['FC_metrics'], data['distances'], data['Fvs']
-    our_metrics = np.mean(our_metrics, axis=1)  # Combine the metrics from both fingers
-    our_metrics = np.nan_to_num(our_metrics, nan=100)
-    mask = our_metrics < 5
+    grasp_results = data['grasp_results']
+    our_metrics = np.mean(data['our_metrics'], axis=1)  # Combine the metrics from both fingers
+    our_metrics = np.nan_to_num(our_metrics, nan=10)  # Replace NaN with 100
+    FC_metrics = np.sum(data['FC_metrics'], axis=1)  # Combine the metrics from both fingers
+    FC_metrics = np.nan_to_num(FC_metrics, nan=10)  # Replace NaN with 100
+    distances = data['distances']
+    Fvs = np.abs(np.sum(data['Fvs'], axis=1))
+    # FC_metrics = FC_metrics / 10 * (distances + 1e-6)  # Normalize the FC metrics by distance
 
-    grasp_results = data['grasp_results'][mask]
-    our_metrics = np.mean(data['our_metrics'][mask], axis=1)  # Combine the metrics from both fingers
-    FC_metrics = np.sum(data['FC_metrics'][mask], axis=1)  # Combine the metrics from both fingers
-    distances = data['distances'][mask]
-    # FC_metrics = FC_metrics / (50 * distances + 1e-6)  # Normalize the FC metrics by distance
-    Fvs = np.abs(np.sum(data['Fvs'][mask]))
-    metrics = our_metrics
-
+    mask = (our_metrics < 1) & (FC_metrics < 3)  # Filter out the metrics that are too large
+    FC_metrics, our_metrics, grasp_results = FC_metrics[mask], our_metrics[mask], grasp_results[mask]
+    metrics = our_metrics  # Normalize the our metrics by Fv
+    
     # 绘制散点图，横轴为our_metric，纵轴为FC_metric
-    plt.scatter(our_metrics[grasp_results == True], FC_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue', s=1)
-    plt.scatter(our_metrics[grasp_results == False], FC_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red', s=1)
+    from scipy.stats import pearsonr
+    corr, pval = pearsonr(metrics, FC_metrics)
+    print(f"our_metric 与 metrics 的皮尔逊相关系数: {corr:.4f}, p值: {pval:.4e}")
+
+    plt.scatter(metrics[grasp_results == True], FC_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue', s=1)
+    plt.scatter(metrics[grasp_results == False], FC_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red', s=1)
     plt.xlabel('Our Metric')
     plt.ylabel('FC Metric')
     plt.title('Our Metric vs FC Metric')
@@ -252,8 +278,8 @@ def validate_result():
     plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
-    plt.hist(metrics[grasp_results == True], bins=100, alpha=0.7, label='Grasp Success', color='blue')
-    plt.hist(metrics[grasp_results == False], bins=100, alpha=0.7, label='Grasp Failure', color='red')
+    plt.hist(metrics[grasp_results == True], bins=200, alpha=0.7, label='Grasp Success', color='blue')
+    plt.hist(metrics[grasp_results == False], bins=200, alpha=0.7, label='Grasp Failure', color='red')
     plt.xlabel('Our Metric')
     plt.ylabel('Frequency')
     plt.legend()
@@ -274,6 +300,6 @@ def validate_result():
 
 
 if __name__ == '__main__':
-    # simulate()
-    preprocess_results()
-    validate_result()
+    simulate()
+    # preprocess_results()
+    # validate_result()
