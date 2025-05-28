@@ -1,0 +1,254 @@
+import cad.grasp_sampling
+import cv2
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+import mujoco    
+from mujoco import viewer
+from dexhand.dexhand import DexHandEnv
+from scipy.spatial.transform import Rotation as R
+
+
+def pre_grasp(env, point, normal, angle, depth):
+    """Pre-grasp the object by moving the hand to the target position.
+    Args: env (DexHandEnv): The DexHand environment. point, normal, depth: Target position of shape (3, 3, 1).
+    Note: translation: qpos[0:3], rotation: qpos[3:6]
+    """
+    translation = point + normal * (depth + 0.13)  # 0.13 is the offset from the base mount to the center of the fingers
+    R_to_normal, _ = R.align_vectors([normal], [[0, 0, 1]])
+    R_about_normal = R.from_rotvec(angle * normal)
+    rot = R_about_normal * R_to_normal
+    rotation = rot.as_euler('XYZ', degrees=False)
+    env.mj_data.qpos[0:3] = translation
+    env.mj_data.qpos[3:6] = rotation
+    env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
+
+def grasp(env):
+    """Grasp the object by applying a force to the hand, and then gravity.
+    Args: env (DexHandEnv): The DexHand environment.
+    """
+    # apply grasping force
+    env.step(np.array([0, 0, 0, 0, 0, 0, 5]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+
+    # remove the gravity compensation
+    body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
+    env.mj_model.body_gravcomp[body_id] = 0.0
+    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+
+def contact_success(env):
+    """Check if the object is in contact with the hand.
+    Args: env (DexHandEnv): The DexHand environment.
+    Returns: bool: True if the object is in contact with the hand, False otherwise.
+    """
+    finger_geom_idx_list = [[mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)], [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]]
+    object_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "object")
+    success = False
+    for i in range(env.mj_data.ncon):  # 遍历接触对，判断物体是否与手指接触
+        geom_id1, geom_id2 = env.mj_data.contact[i].geom1, env.mj_data.contact[i].geom2
+        if (geom_id1 == object_id and any(geom_id2 in sublist for sublist in finger_geom_idx_list)) or (geom_id2 == object_id and any(geom_id1 in sublist for sublist in finger_geom_idx_list)):
+            success = True
+            break
+
+    return success
+
+def measure(env):
+    """
+    Measure the contact normals and forces of the grasps.
+    Args: env (DexHandEnv): The DexHand environment.
+    Consts: rotation_left/right: rotation matrix relative to the hand
+            geom_idx_left/right: geom indexes of the mirco units
+    Returns: Dict{List[np.adarray]}: positions, normals, and the forces of the fingers
+    """
+    # 常量，按照手指顺序
+    num_fingers = 2
+    finger_rotation_list = [np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])]
+    finger_geom_idx_list = [[mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)], [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]]
+
+    rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
+    measurement = []
+    for i in range(num_fingers):
+        rotation, geom_idx = finger_rotation_list[i], finger_geom_idx_list[i]
+        # Step 1: 初始化PNF矩阵（F矩阵为手指坐标系）
+        P_field = env.mj_data.geom_xpos[geom_idx]
+        F_field = env.mj_data.sensordata[1200 * i:1200 * (i + 1)].reshape(3, -1).T
+        F_field = np.roll(F_field, -1, axis=1)
+        N_field = F_field / (0.001 + np.linalg.norm(F_field, axis=1)[:, np.newaxis])
+        # Step 2: 使用碰撞对为PN矩阵赋值（PN矩阵为世界坐标系）
+        for i in range(env.mj_data.ncon):
+            geom_id = env.mj_data.contact[i].geom1  # 获取第i个接触几何体的索引geom_id
+            if geom_id in geom_idx:  # 若geom_id属于该手指，则保存该几何体数据
+                geom_id = geom_idx.index(geom_id)
+                geom_id = 20 * (geom_id // 20) + (19 - geom_id % 20)
+                P_field[geom_id] = env.mj_data.contact[i].pos[:3]
+                N_field[geom_id] = env.mj_data.contact[i].frame[:3]
+        # Step 3: 使用旋转矩阵计算手指坐标系下的N矩阵, 用于接触力分解
+        N_field_finger = N_field @ (rotation @ rotation_hand.T)
+        Fn_field = np.sum(N_field_finger * F_field, axis=1)[:, np.newaxis] * N_field_finger
+        Ft_field = F_field - Fn_field
+
+        # Step 4: 额外计算用于抵抗重力的竖直力
+        F_field_world = F_field @ (rotation_hand @ rotation.T)   # 将F矩阵转换到世界坐标系
+        Fv = np.sum(-F_field_world[:, 2])
+
+        measurement.append({"P_field": P_field, "N_field": N_field, "Fn_field": Fn_field, "Ft_field": Ft_field, "Fv": Fv})
+
+    return measurement
+
+def post_grasp(env):
+    """Post-grasp the object by moving the hand, simulating the disturbance.
+    Args: env (DexHandEnv): The DexHand environment.
+    """
+    for i in range(1):
+        env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
+        env.step(np.array([0, 0, -0.1, 0, 0, 0, 10]))
+        # env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
+        # env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
+        # env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
+        # env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
+
+def grasp_success(env):
+    """
+    calculate the empirical metirc under the action disturbance.
+    Args: env (DexHandEnv): The DexHand environment.
+    Returns: whether the object contacts the floor.
+    """
+    floor_idx = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+    success = True
+    for i in range(env.mj_data.ncon):  # 遍历接触对，判断物体是否与地面接触
+        geom_id1, geom_id2 = env.mj_data.contact[i].geom1, env.mj_data.contact[i].geom2
+        if geom_id1 == floor_idx or geom_id2 == floor_idx:
+            success = False
+            break
+    
+    return success
+
+def calculate_FC_metric(measurement):
+    pass
+
+def calculate_our_metric(measurement):
+    num_fingers = len(measurement)
+    metric = np.zeros(num_fingers)
+    Fv = np.zeros(num_fingers)
+    for i in range(num_fingers):
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
+        ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
+        metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
+        Fv[i] = measurement[i]["Fv"]
+        print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
+    
+    return metric, Fv
+
+def conduct_simulation(env, grasps):
+    metrics = {"FC_metric": [], "our_metric": [], "empirical_metric": []}
+    for grasp_point, grasp_normal, grasp_depth in grasps:
+        _ = env.reset()
+        pre_grasp(env, grasp_point, grasp_normal, grasp_depth)
+        grasp(env)
+        measurement = measure(env)
+        metrics["FC_metric"].append(calculate_FC_metric(measurement))
+        metrics["our_metric"].append(calculate_our_metric(measurement))
+        metrics["empirical_metric"].append(grasp_success(env))
+
+    
+def test_env():
+    # initialize the environment
+    env = DexHandEnv()
+    _ = env.reset()
+
+    # sample grasps from the CAD model
+    try:
+        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=500000)
+    except Exception as e:
+        print(f"未生成无碰撞抓取, Error sampling grasps: {e}")
+        return
+
+    contact_results, grasp_results, our_metrics, Fvs = [], [], [], []
+    for i in range(len(grasp_points)):
+        _ = env.reset()
+        # pre-grasp the object
+        pre_grasp(env, grasp_points[i], grasp_normals[i], grasp_angles[i], grasp_depths[i])
+        
+        # grasp the object
+        grasp(env)
+        contact_result = contact_success(env)
+        contact_results.append(contact_result)
+        measurement = measure(env)
+        our_metric, Fv = calculate_our_metric(measurement)
+        our_metrics.append(our_metric)
+        Fvs.append(Fv)
+
+        # post-grasp the object
+        post_grasp(env)
+        grasp_result = grasp_success(env)
+        grasp_results.append(grasp_result)
+
+        
+        print(f"Grasp {i+1}/{len(grasp_points)}: Contact Success: {contact_result}, Grasp Success: {grasp_result}, Our Metric: {our_metric}")
+
+        # save the results
+        results_dir = "results"
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir)
+        np.savez(os.path.join(results_dir, "grasp_results.npz"), 
+             contact_results=contact_results, 
+             grasp_results=grasp_results, 
+             our_metrics=our_metrics, 
+             Fvs=Fvs)
+    # env.render()
+
+    # save the results
+    results_dir = "results"
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+    np.savez(os.path.join(results_dir, "grasp_results.npz"), 
+             contact_results=contact_results, 
+             grasp_results=grasp_results, 
+             our_metrics=our_metrics, 
+             Fvs=Fvs)
+    
+def validate_result():
+    results_dir = "results"
+    if not os.path.exists(results_dir):
+        print("Results directory does not exist.")
+        return
+    
+    data = np.load(os.path.join(results_dir, "grasp_results.npz"))
+    contact_results = data['contact_results']
+    our_metrics = data['our_metrics']
+    our_metrics = np.mean(our_metrics, axis=1)  # Combine the metrics from both fingers
+    our_metrics = np.nan_to_num(our_metrics, nan=100)
+    mask = (contact_results == True) & (our_metrics < 5)
+    # 只使用contact为True的结果
+    grasp_results = data['grasp_results'][mask]
+    our_metrics = abs(data['our_metrics'][mask])
+    Fvs = data['Fvs'][mask]
+    # 将nan值替换为10
+    # our_metrics = np.nan_to_num(our_metrics, nan=1.0)
+    our_metrics = np.clip(np.mean(our_metrics, axis=1), 0, 5)  # Combine the metrics from both fingers
+
+    # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
+    plt.hist(our_metrics[grasp_results == True], bins=100, alpha=0.7, label='Grasp Success', color='blue')
+    plt.hist(our_metrics[grasp_results == False], bins=100, alpha=0.7, label='Grasp Failure', color='red')
+    plt.xlabel('Our Metric')
+    plt.ylabel('Frequency')
+    plt.legend()
+    plt.show()
+
+    # 计算AUROC
+    from sklearn.metrics import roc_auc_score
+    auroc = roc_auc_score(grasp_results, -our_metrics)
+    print(f"AUROC: {auroc:.4f}")
+
+    # 假设检验
+    from scipy.stats import ks_2samp
+
+    # 假设 data1, data2 是两个一维数组
+    stat, p_value = ks_2samp(our_metrics[grasp_results == True], our_metrics[grasp_results == False])
+    print(f"KS检验统计量: {stat}")
+    print(f"KS检验 p值: {p_value}")
+
+
+if __name__ == '__main__':
+    # test_env()
+    validate_result()

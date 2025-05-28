@@ -1,4 +1,5 @@
 import cv2
+import gc
 import gymnasium as gym
 from io import BytesIO
 import mujoco
@@ -19,8 +20,8 @@ class DexHandEnv(gym.Env):
         """
         self.model_path = os.path.join('dexhand', 'scene.xml')
         with open(self.model_path,"r") as f:
-            xml_content = f.read()
-        self.mj_model = mujoco.MjModel.from_xml_string(xml_content)
+            self.xml_content = f.read()
+        self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_renderer = mujoco.Renderer(self.mj_model, 480, 640)
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}
@@ -41,7 +42,12 @@ class DexHandEnv(gym.Env):
         # self.reset()
 
     def reset(self):
+        del self.mj_model
+        del self.mj_data
+        gc.collect()
+        self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
+        self.episode_buffer = {"visual": [], "tactile_left": [], "tactile_right": [], "joint": []}
         return self.mj_renderer.render()
 
     def add_frame(self):

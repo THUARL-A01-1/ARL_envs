@@ -24,7 +24,7 @@ def initialize_gripper():
     finger_left, finger_right = copy.deepcopy(handle), copy.deepcopy(handle)
     handle.translate([0, 0, 8e-2])
     handle.paint_uniform_color([0.7, 0.7, 0.7])
-    hinge.rotate(o3d.geometry.get_rotation_matrix_from_xyz([0, np.pi / 2, 0]), center=np.zeros(3))
+    hinge.rotate(R.from_euler('XYZ', np.array([0, np.pi / 2, 0]), degrees=False).as_matrix(), center=np.zeros(3))
     hinge.translate([0, 0, 8e-2 / 2])
     finger_left.translate([-1.4e-1 / 2, 0, 0])
     finger_right.translate([1.4e-1 / 2, 0, 0])
@@ -52,7 +52,7 @@ def sample_grasp_point(point_cloud, num_samples=1):
     points = np.asarray(point_cloud.points)
     
     # Randomly sample grasp points
-    indices = np.random.choice(len(points), num_samples, replace=False)
+    indices = np.random.choice(len(points), num_samples, replace=True)
     grasp_points = points[indices]
     
     return grasp_points
@@ -125,10 +125,13 @@ def sample_grasp_collision(point_cloud, grasp_points, grasp_normals, grasp_angle
     
     for i in range(len(grasp_points)):
         gripper_copy = copy.deepcopy(initial_gripper)
-        gripper_copy.translate(grasp_points[i])  # translate to grasp point
-        rot, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
-        gripper_copy.rotate(rot.as_matrix(), center=grasp_points[i])  # rotate to grasp normal
-        gripper_copy.translate(grasp_normals[i] * grasp_depths[i])  # translate along the normal direction
+        R_to_normal, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
+        R_about_normal = R.from_rotvec(grasp_angles[i] * grasp_normals[i])  # The normal vector is aleady the z-axis
+        rotation_matrix = R_about_normal * R_to_normal
+        rotation_xyz = rotation_matrix.as_euler('XYZ', degrees=False)
+        gripper_copy.rotate(R.from_euler('XYZ', rotation_xyz, degrees=False).as_matrix(), center=np.zeros(3))  # rotate to grasp normal
+        gripper_copy.translate(grasp_points[i] + grasp_normals[i] * grasp_depths[i])  # translate to grasp point  # translate along the normal direction
+
         collision = cad.collision_detection.distance_collision_detection(gripper_copy, point_cloud)
         grasp_collisions.append(collision)
     
@@ -157,18 +160,22 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
         spheres.append(sphere)
     
     # 在点云中标出gripper: 抓取法线, 角度和深度
-    grippers = []
+    grippers = [initial_gripper]
     for i in range(1):
         gripper_copy = copy.deepcopy(initial_gripper)
-        gripper_copy.translate(grasp_points[i])  # translate to grasp point
-        rot, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
-        gripper_copy.rotate(rot.as_matrix(), center=grasp_points[i])  # rotate to grasp normal
-        gripper_copy.translate(grasp_normals[i] * grasp_depths[i])  # translate along the normal direction
+        R_to_normal, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
+        R_about_normal = R.from_rotvec(grasp_angles[i] * grasp_normals[i])
+        rotation_matrix = R_about_normal * R_to_normal
+        rotation_xyz = rotation_matrix.as_euler('XYZ', degrees=False)
+        gripper_copy.rotate(R.from_euler('XYZ', rotation_xyz, degrees=False).as_matrix(), center=np.zeros(3))  # rotate to grasp normal
+        gripper_copy.translate(grasp_points[i] + grasp_normals[i] * grasp_depths[i])  # translate to grasp point  # translate along the normal direction
+
         collision = cad.collision_detection.distance_collision_detection(gripper_copy, point_cloud_copy)
         if collision:
             gripper_copy.paint_uniform_color([0.7, 0.7, 0])  # Yellow color for collision
         else:
             gripper_copy.paint_uniform_color([0, 1, 0])  # Green color for no collision
+
         grippers.append(gripper_copy)
     
     # Combine all geometries for visualization
@@ -177,7 +184,7 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
     # Visualize the combined geometries
     o3d.visualization.draw_geometries(geometries)
 
-def main():
+def main(num_samples=500):
     # Load the point cloud
     try:
         file_path = "cad/assets/dexhand_base.ply"  # Replace with your point cloud file path
@@ -188,7 +195,6 @@ def main():
         return
     
     # Sample grasp points, normals, and depths
-    num_samples = 50
     try:
         grasp_points = sample_grasp_point(point_cloud, num_samples)
         grasp_normals = sample_grasp_normal(num_samples)
@@ -200,15 +206,15 @@ def main():
         print(f"Error sampling grasps: {e}")
         return
 
-    # Visualize the sampled grasps
-    try:
-        initial_gripper = initialize_gripper()
-        visualize_grasp(point_cloud, grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)], initial_gripper)
-    except Exception as e:
-        print(f"Error visualizing grasps: {e}")
-        return
+    # # Visualize the sampled grasps
+    # try:
+    #     initial_gripper = initialize_gripper()
+    #     visualize_grasp(point_cloud, grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)], initial_gripper)
+    # except Exception as e:
+    #     print(f"Error visualizing grasps: {e}")
+    #     return
     
-    return [grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)]]
+    return grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)]
 
 if __name__ == "__main__":
     main()
