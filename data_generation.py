@@ -1,5 +1,6 @@
 import cad.grasp_sampling
 import cv2
+import json
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -91,7 +92,7 @@ def measure(env):
         F_field_world = F_field @ (rotation_hand @ rotation.T)   # 将F矩阵转换到世界坐标系
         Fv = np.sum(-F_field_world[:, 2])
 
-        measurement.append({"P_field": P_field, "N_field": N_field, "Fn_field": Fn_field, "Ft_field": Ft_field, "Fv": Fv})
+        measurement.append({"P_field": P_field.tolist(), "N_field": N_field.tolist(), "N_field_finger": N_field_finger.tolist(), "Fn_field": Fn_field.tolist(), "Ft_field": Ft_field.tolist(), "Fv": Fv.tolist()})
 
     return measurement
 
@@ -124,7 +125,25 @@ def grasp_success(env):
     return success
 
 def calculate_FC_metric(measurement):
-    pass
+    num_fingers = len(measurement)
+    metric = np.zeros(num_fingers)
+    P_list, N_list, N_finger_list = [], [], []
+    for i in range(num_fingers):
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
+        P_field, N_field, N_field_finger = np.array(measurement[i]["P_field"]), np.array(measurement[i]["N_field"]), np.array(measurement[i]["N_field_finger"])
+        P, N, N_finger = np.mean(P_field[F_mask], axis=0), np.mean(N_field[F_mask], axis=0), np.mean(N_field_finger[F_mask], axis=0)
+        P_list.append(P)
+        N_list.append(N)
+        N_finger_list.append(N_finger)
+        print(f"Finger {i+1}: P: {P}, N: {N}, N_finger: {N_finger}")
+    # the angle of N_list[0] and N_list[1]
+    alpha = -np.dot(N_list[0], N_list[1])
+    beta = -np.dot(N_finger_list[0], np.array([0, 0, 1])) - np.dot(N_finger_list[1], np.array([0, 0, 1]))
+    metric = np.array([alpha, beta])
+    distance = np.linalg.norm(np.mean(np.array(P_list), axis=0) - np.array([0.07, 0.07, 0.04]))
+
+    return metric, distance
+
 
 def calculate_our_metric(measurement):
     num_fingers = len(measurement)
@@ -138,32 +157,19 @@ def calculate_our_metric(measurement):
         print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
     
     return metric, Fv
-
-def conduct_simulation(env, grasps):
-    metrics = {"FC_metric": [], "our_metric": [], "empirical_metric": []}
-    for grasp_point, grasp_normal, grasp_depth in grasps:
-        _ = env.reset()
-        pre_grasp(env, grasp_point, grasp_normal, grasp_depth)
-        grasp(env)
-        measurement = measure(env)
-        metrics["FC_metric"].append(calculate_FC_metric(measurement))
-        metrics["our_metric"].append(calculate_our_metric(measurement))
-        metrics["empirical_metric"].append(grasp_success(env))
-
     
-def test_env():
+def simulate():
     # initialize the environment
     env = DexHandEnv()
     _ = env.reset()
 
     # sample grasps from the CAD model
     try:
-        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=500000)
+        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=5000)
     except Exception as e:
         print(f"未生成无碰撞抓取, Error sampling grasps: {e}")
         return
 
-    contact_results, grasp_results, our_metrics, Fvs = [], [], [], []
     for i in range(len(grasp_points)):
         _ = env.reset()
         # pre-grasp the object
@@ -172,60 +178,79 @@ def test_env():
         # grasp the object
         grasp(env)
         contact_result = contact_success(env)
-        contact_results.append(contact_result)
         measurement = measure(env)
         our_metric, Fv = calculate_our_metric(measurement)
-        our_metrics.append(our_metric)
-        Fvs.append(Fv)
+        FC_metric, distance = calculate_FC_metric(measurement)
 
         # post-grasp the object
         post_grasp(env)
         grasp_result = grasp_success(env)
-        grasp_results.append(grasp_result)
-
         
-        print(f"Grasp {i+1}/{len(grasp_points)}: Contact Success: {contact_result}, Grasp Success: {grasp_result}, Our Metric: {our_metric}")
+        print(f"Grasp {i+1}/{len(grasp_points)}: Contact Success: {contact_result}, Grasp Success: {grasp_result}, Our Metric: {our_metric}, FC Metric: {FC_metric}, Distance: {distance}, Fv: {Fv}")
 
         # save the results
-        results_dir = "results"
-        if not os.path.exists(results_dir):
-            os.makedirs(results_dir)
-        np.savez(os.path.join(results_dir, "grasp_results.npz"), 
-             contact_results=contact_results, 
-             grasp_results=grasp_results, 
-             our_metrics=our_metrics, 
-             Fvs=Fvs)
-    # env.render()
+        result = {
+            "contact_result": contact_result,
+            "grasp_result": grasp_result,
+            "measurement": measurement}
+        with open("results/grasp_results.json", "a", encoding="utf-8") as f:
+            f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-    # save the results
-    results_dir = "results"
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
-    np.savez(os.path.join(results_dir, "grasp_results.npz"), 
-             contact_results=contact_results, 
-             grasp_results=grasp_results, 
-             our_metrics=our_metrics, 
-             Fvs=Fvs)
+        # env.render()
+
     
+def preprocess_results():
+    measurement_list = []
+    with open("results/grasp_results.json", "r", encoding="utf-8") as f:
+        for line in f:
+            result = json.loads(line)
+            contact_result = result["contact_result"]
+            grasp_result = result["grasp_result"]
+            measurement = result["measurement"]
+            if contact_result == True:
+                our_metric, Fv = calculate_our_metric(measurement)
+                FC_metric, distance = calculate_FC_metric(measurement)
+                measurement_list.append({
+                    "grasp_result": grasp_result,
+                    "our_metric": our_metric,
+                    "FC_metric": FC_metric,
+                    "distance": distance,
+                    "Fv": Fv
+                })
+    # save the results to a npz file
+    np.savez("results/grasp_metrics.npz", 
+             grasp_results=[result["grasp_result"] for result in measurement_list],
+             our_metrics=[result["our_metric"] for result in measurement_list],
+             FC_metrics=[result["FC_metric"] for result in measurement_list],
+             distances=[result["distance"] for result in measurement_list],
+             Fvs=[result["Fv"] for result in measurement_list])
+    
+
+
 def validate_result():
-    results_dir = "results"
-    if not os.path.exists(results_dir):
-        print("Results directory does not exist.")
-        return
-    
-    data = np.load(os.path.join(results_dir, "grasp_results.npz"))
-    contact_results = data['contact_results']
-    our_metrics = data['our_metrics']
+    data = np.load(("results/grasp_metrics.npz"))
+    grasp_results, our_metrics, FC_metrics, distances, Fvs = data['grasp_results'], data['our_metrics'], data['FC_metrics'], data['distances'], data['Fvs']
     our_metrics = np.mean(our_metrics, axis=1)  # Combine the metrics from both fingers
     our_metrics = np.nan_to_num(our_metrics, nan=100)
-    mask = (contact_results == True) & (our_metrics < 5)
-    # 只使用contact为True的结果
+    mask = our_metrics < 5
+
     grasp_results = data['grasp_results'][mask]
-    our_metrics = abs(data['our_metrics'][mask])
+    our_metrics = np.mean(data['our_metrics'][mask], axis=1)  # Combine the metrics from both fingers
+    FC_metrics = np.sum(data['FC_metrics'][mask], axis=1)  # Combine the metrics from both fingers
+    distances = data['distances'][mask]
+    FC_metrics = FC_metrics / (50 * distances + 1e-6)  # Normalize the FC metrics by distance
     Fvs = data['Fvs'][mask]
     # 将nan值替换为10
-    # our_metrics = np.nan_to_num(our_metrics, nan=1.0)
-    our_metrics = np.clip(np.mean(our_metrics, axis=1), 0, 5)  # Combine the metrics from both fingers
+    our_metrics = np.nan_to_num(our_metrics, nan=10.0)
+
+    # 绘制散点图，横轴为our_metric，纵轴为FC_metric
+    plt.scatter(our_metrics[grasp_results == True], FC_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue')
+    plt.scatter(our_metrics[grasp_results == False], FC_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red')
+    plt.xlabel('Our Metric')
+    plt.ylabel('FC Metric')
+    plt.title('Our Metric vs FC Metric')
+    plt.legend()
+    plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
     plt.hist(our_metrics[grasp_results == True], bins=100, alpha=0.7, label='Grasp Success', color='blue')
@@ -250,5 +275,6 @@ def validate_result():
 
 
 if __name__ == '__main__':
-    # test_env()
+    # simulate()
+    # preprocess_results()
     validate_result()
