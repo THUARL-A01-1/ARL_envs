@@ -150,7 +150,7 @@ def calculate_our_metric(measurement):
     metric = np.zeros(num_fingers)
     Fv = np.zeros(num_fingers)
     for i in range(num_fingers):
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
         ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
         Fv[i] = measurement[i]["Fv"]
@@ -239,13 +239,12 @@ def validate_result():
     FC_metrics = np.sum(data['FC_metrics'][mask], axis=1)  # Combine the metrics from both fingers
     distances = data['distances'][mask]
     # FC_metrics = FC_metrics / (50 * distances + 1e-6)  # Normalize the FC metrics by distance
-    Fvs = data['Fvs'][mask]
-    # 将nan值替换为10
-    our_metrics = np.nan_to_num(our_metrics, nan=10.0)
+    Fvs = np.abs(np.sum(data['Fvs'][mask]))
+    metrics = our_metrics
 
     # 绘制散点图，横轴为our_metric，纵轴为FC_metric
-    plt.scatter(our_metrics[grasp_results == True], FC_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue')
-    plt.scatter(our_metrics[grasp_results == False], FC_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red')
+    plt.scatter(our_metrics[grasp_results == True], FC_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue', s=1)
+    plt.scatter(our_metrics[grasp_results == False], FC_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red', s=1)
     plt.xlabel('Our Metric')
     plt.ylabel('FC Metric')
     plt.title('Our Metric vs FC Metric')
@@ -253,8 +252,8 @@ def validate_result():
     plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
-    plt.hist(our_metrics[grasp_results == True], bins=100, alpha=0.7, label='Grasp Success', color='blue')
-    plt.hist(our_metrics[grasp_results == False], bins=100, alpha=0.7, label='Grasp Failure', color='red')
+    plt.hist(metrics[grasp_results == True], bins=100, alpha=0.7, label='Grasp Success', color='blue')
+    plt.hist(metrics[grasp_results == False], bins=100, alpha=0.7, label='Grasp Failure', color='red')
     plt.xlabel('Our Metric')
     plt.ylabel('Frequency')
     plt.legend()
@@ -262,14 +261,14 @@ def validate_result():
 
     # 计算AUROC
     from sklearn.metrics import roc_auc_score
-    auroc = roc_auc_score(grasp_results, -our_metrics)
+    auroc = roc_auc_score(grasp_results, -metrics)
     print(f"AUROC: {auroc:.4f}")
 
     # 假设检验
     from scipy.stats import ks_2samp
 
     # 假设 data1, data2 是两个一维数组
-    stat, p_value = ks_2samp(our_metrics[grasp_results == True], our_metrics[grasp_results == False])
+    stat, p_value = ks_2samp(metrics[grasp_results == True], metrics[grasp_results == False])
     print(f"KS检验统计量: {stat}")
     print(f"KS检验 p值: {p_value}")
 
