@@ -238,7 +238,7 @@ def validate_result():
     our_metrics = np.mean(data['our_metrics'][mask], axis=1)  # Combine the metrics from both fingers
     FC_metrics = np.sum(data['FC_metrics'][mask], axis=1)  # Combine the metrics from both fingers
     distances = data['distances'][mask]
-    FC_metrics = FC_metrics / (50 * distances + 1e-6)  # Normalize the FC metrics by distance
+    # FC_metrics = FC_metrics / (50 * distances + 1e-6)  # Normalize the FC metrics by distance
     Fvs = data['Fvs'][mask]
     # 将nan值替换为10
     our_metrics = np.nan_to_num(our_metrics, nan=10.0)
@@ -276,5 +276,5 @@ def validate_result():
 
 if __name__ == '__main__':
     # simulate()
-    # preprocess_results()
+    preprocess_results()
     validate_result()
