@@ -9,7 +9,6 @@ from mujoco import viewer
 from dexhand.dexhand import DexHandEnv
 from scipy.spatial.transform import Rotation as R
 
-OBJECT_ID = "006"
 
 def pre_grasp(env, point, normal, angle, depth):
     """Pre-grasp the object by moving the hand to the target position.
@@ -177,7 +176,7 @@ def calculate_our_metric(measurement):
     
     return metric, Fv
     
-def simulate():
+def simulate(OBJECT_ID):
     # initialize the environment
     env = DexHandEnv()
     _ = env.reset()
@@ -186,7 +185,7 @@ def simulate():
 
     # sample grasps from the CAD model
     try:
-        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=500, OBJECT_ID=OBJECT_ID)
+        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=10000, OBJECT_ID=OBJECT_ID)
     except Exception as e:
         print(f"未生成无碰撞抓取, Error sampling grasps: {e}")
         return
@@ -217,7 +216,7 @@ def simulate():
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        env.render()
+        # env.render()
 
     
 def preprocess_results():
@@ -300,6 +299,19 @@ def validate_result():
 
 
 if __name__ == '__main__':
-    simulate()
+    # simulate()
     # preprocess_results()
     # validate_result()
+    import shutil
+    base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
+    for i in range(22, 88):
+        OBJECT_ID = f"{i:03d}"
+        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+        else:
+            print(f"Source not found: {src}")
+        
+        print(f"Processing object {OBJECT_ID}...")
+        simulate(OBJECT_ID=OBJECT_ID)
