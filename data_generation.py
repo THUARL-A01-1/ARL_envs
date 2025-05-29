@@ -73,7 +73,8 @@ def measure(env):
         # Step 1: 初始化PNF矩阵（F矩阵为手指坐标系）
         P_field = env.mj_data.geom_xpos[geom_idx]
         F_field = env.mj_data.sensordata[1200 * i:1200 * (i + 1)].reshape(3, -1).T
-        F_field = np.roll(F_field, -1, axis=1)
+        F_field = np.roll(F_field, -1, axis=1)  # [z, x, y] -> [x, y, z]
+        F_field[:, 0] = -F_field[:, 0]  # x-axis is flipped
         N_field = F_field / (0.001 + np.linalg.norm(F_field, axis=1)[:, np.newaxis])
         # Step 2: 使用碰撞对为PN矩阵赋值（PN矩阵为世界坐标系）
         for i in range(env.mj_data.ncon):
@@ -152,24 +153,24 @@ def calculate_our_metric(measurement):
     Fv = np.zeros(num_fingers)
     for i in range(num_fingers):
         
-        F_field = np.array(measurement[i]["Ft_field"]) + np.array(measurement[i]["Fn_field"])
-        F_field_corrected = np.zeros_like(F_field)
-        for j in range(400):
-            f = F_field[j]
-            if np.linalg.norm(f) > 0.02:
-                dx, dy = j % 20 - 10, j // 20 - 10
-                t = np.array([-dy, dx, 0]) / np.sqrt(dx ** 2 + dy ** 2 + 1e-6)
-                sin = -np.sqrt(dx ** 2 + dy ** 2 + 1e-6) / 35
-                cos = np.sqrt(1 - sin ** 2)
-                f_parallel = np.dot(f, t) * t
-                f_vertical = f - f_parallel
-                f_corrected = f_parallel + cos * f_vertical + sin * np.cross(t, f_vertical)
-                F_field_corrected[j] = f_corrected
-        F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
-        ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
+        # F_field = np.array(measurement[i]["Ft_field"]) + np.array(measurement[i]["Fn_field"])
+        # F_field_corrected = np.zeros_like(F_field)
+        # for j in range(400):
+        #     f = F_field[j]
+        #     if np.linalg.norm(f) > 0.02:
+        #         dx, dy = j % 20 - 10, j // 20 - 10
+        #         t = np.array([-dy, dx, 0]) / np.sqrt(dx ** 2 + dy ** 2 + 1e-6)
+        #         sin = -np.sqrt(dx ** 2 + dy ** 2 + 1e-6) / 35
+        #         cos = np.sqrt(1 - sin ** 2)
+        #         f_parallel = np.dot(f, t) * t
+        #         f_vertical = f - f_parallel
+        #         f_corrected = f_parallel + cos * f_vertical + sin * np.cross(t, f_vertical)
+        #         F_field_corrected[j] = f_corrected
+        # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
+        # ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
 
-        # F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
-        # ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
+        ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
         Fv[i] = measurement[i]["Fv"]
         print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
@@ -185,7 +186,7 @@ def simulate(OBJECT_ID):
 
     # sample grasps from the CAD model
     try:
-        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=10000, OBJECT_ID=OBJECT_ID)
+        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=1000, OBJECT_ID=OBJECT_ID)
     except Exception as e:
         print(f"未生成无碰撞抓取, Error sampling grasps: {e}")
         return
@@ -324,25 +325,25 @@ if __name__ == '__main__':
 
     import shutil
     base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(0, 23):
+    for i in range(88, 89):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # # Simulate the grasping process
-        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        # if os.path.exists(src):
-        #     shutil.copyfile(src, dst)
-        # else:
-        #     print(f"Source not found: {src}")
-        # simulate(OBJECT_ID=OBJECT_ID)
+        # Simulate the grasping process
+        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+        else:
+            print(f"Source not found: {src}")
+        simulate(OBJECT_ID=OBJECT_ID)
 
-        # # Preprocess the results after simulation
-        # preprocess_results(OBJECT_ID=OBJECT_ID)
+        # Preprocess the results after simulation
+        preprocess_results(OBJECT_ID=OBJECT_ID)
 
         # # Validate the results
         # validate_result(OBJECT_ID=OBJECT_ID)
         
     
-    combine_results()
-    validate_result(OBJECT_ID="all") 
+    # combine_results()
+    # validate_result(OBJECT_ID="all") 

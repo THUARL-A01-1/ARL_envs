@@ -100,22 +100,23 @@ def test_env():
     _ = env.reset()
     rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
     rotation_right, rotation_left = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])
-    geom_idx = [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)]
+    geom_idx = [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]
 
     # pre-grasp the object
-    env.mj_data.qpos[0:3] = np.array([-0.17, 0, 0])
-    env.mj_data.qpos[3:6] = np.array([0, -1.57, 0])  # reset the rotation of the hand
+    env.mj_data.qpos[0:3] = np.array([0, 0, 0.15])
+    env.mj_data.qpos[3:6] = np.array([0, 0, 0.3])  # reset the rotation of the hand
     env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
     
     
     # grasp the object
     grasp(env)
-    # env.step(np.array([0, 0, 0, 0, 0.1, 0, 20]))
-    # env.step(np.array([0, 0, 0, 0, 0.1, 0, 20]))
-    # env.step(np.array([0, 0, 0, 0, 0.1, 0, 20]))
+    # env.step(np.array([0, 0, 0, 0, 0, -0.05, 20]))
+    # env.step(np.array([0, 0, 0, 0, 0, -0.05, 20]))
+    # env.step(np.array([0, 0, 0, 0, 0, -0.05, 20]))
     P_field = env.mj_data.geom_xpos[geom_idx]
-    F_field = env.mj_data.sensordata[:1200].reshape(3, -1).T
-    F_field = np.roll(F_field, -1, axis=1)
+    F_field = env.mj_data.sensordata[1200:].reshape(3, -1).T
+    F_field = np.roll(F_field, -1, axis=1)  # roll the first column to the last column
+    F_field[:, 0] = -F_field[:, 0]  # flip the z-axis to match the world coordinate system
     N_field = F_field / (0.001 + np.linalg.norm(F_field, axis=1)[:, np.newaxis])
     for i in range(env.mj_data.ncon):
         geom_id = env.mj_data.contact[i].geom1
@@ -123,8 +124,8 @@ def test_env():
             geom_id = geom_idx.index(geom_id)
             geom_id = 20 * (geom_id // 20) + (19 - geom_id % 20)
             N_field[geom_id] = env.mj_data.contact[i].frame[:3]
-    N_field_finger = N_field @ rotation_hand @ rotation_left 
-    F_field_world = F_field @ rotation_left.T @ rotation_hand.T
+    N_field_finger = N_field @ rotation_hand @ rotation_right 
+    F_field_world = F_field @ rotation_right.T @ rotation_hand.T
     Fv = np.sum(F_field_world[:, 2])
     Fn_field = np.sum(N_field_finger * F_field, axis=1)[:, np.newaxis] * N_field
     Ft_field = F_field - Fn_field
