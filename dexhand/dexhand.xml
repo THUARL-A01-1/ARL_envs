@@ -29,7 +29,7 @@
                 <!-- left driver and finger -->
                 <body name="left_driver" pos="-0.039 0.001 -0.020" gravcomp="1">
                     <joint name="left_driver_joint" class="driver" axis="-1 0 0"/>
-                    <geom class="visual" mesh="driver" material="metal"/>
+                    <geom class="visual" mesh="driver" material="black"/>
                     <geom class="collision" mesh="driver"/>
                     <body name="left_finger" pos="0 0 0" gravcomp="1">
                         <geom class="visual" mesh="finger" material="black"/>

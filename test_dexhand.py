@@ -99,23 +99,20 @@ def test_env():
     env = DexHandEnv()
     _ = env.reset()
     rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
-    rotation_left, rotation_right = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])
+    rotation_right, rotation_left = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])
     geom_idx = [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)]
 
     # pre-grasp the object
-    env.mj_data.qpos[0:3] = np.array([0, 0, 0.1])
-    env.mj_data.qpos[3:6] = np.array([1.3, 1.3, 1.3])  # reset the rotation of the hand
-    
+    env.mj_data.qpos[0:3] = np.array([-0.17, 0, 0])
+    env.mj_data.qpos[3:6] = np.array([0, -1.57, 0])  # reset the rotation of the hand
     env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
-
-    # env.step(np.array([0, 0, 0, 1.3, 0, 0, 0]))
-    # env.step(np.array([0, 0, 0, 0, 1.3, 0, 0]))
-    # env.step(np.array([0, 0, 0, 0, 0, 1.3, 0]))
-    # env.step(np.array([0, 0, 0.1, 0, 0, 0, 0]))
+    
     
     # grasp the object
     grasp(env)
-
+    # env.step(np.array([0, 0, 0, 0, 0.1, 0, 20]))
+    # env.step(np.array([0, 0, 0, 0, 0.1, 0, 20]))
+    # env.step(np.array([0, 0, 0, 0, 0.1, 0, 20]))
     P_field = env.mj_data.geom_xpos[geom_idx]
     F_field = env.mj_data.sensordata[:1200].reshape(3, -1).T
     F_field = np.roll(F_field, -1, axis=1)
@@ -126,17 +123,19 @@ def test_env():
             geom_id = geom_idx.index(geom_id)
             geom_id = 20 * (geom_id // 20) + (19 - geom_id % 20)
             N_field[geom_id] = env.mj_data.contact[i].frame[:3]
-    N_field = N_field @ rotation_hand.T @ rotation_left
-    Fn_field = np.sum(N_field * F_field, axis=1)[:, np.newaxis] * N_field
+    N_field_finger = N_field @ rotation_hand @ rotation_left 
+    F_field_world = F_field @ rotation_left.T @ rotation_hand.T
+    Fv = np.sum(F_field_world[:, 2])
+    Fn_field = np.sum(N_field_finger * F_field, axis=1)[:, np.newaxis] * N_field
     Ft_field = F_field - Fn_field
     
-    F_mask = np.linalg.norm(Fn_field, axis=1) > 0.1
+    F_mask = np.linalg.norm(Fn_field, axis=1) > 0.05
     ratio = np.linalg.norm(Ft_field, axis=1) / np.linalg.norm(Fn_field, axis=1)
 
     # print(f"Force: {sum(F_field[:, 0])}, {sum(F_field[:, 1])}, {sum(F_field[:, 2])}")
     # print(f"num_contact: {sum(F_mask)}")
-    print(f"Ratio: {sum(ratio[F_mask]) / sum(F_mask)}")
-    print(f"score: {sum(ratio[F_mask]) / sum(F_field[:, 0])}")
+    # print(f"Ratio: {sum(ratio[F_mask]) / sum(F_mask)}")
+    # print(f"score: {sum(ratio[F_mask]) / sum(F_field[:, 0])}")
 
     # post-grasp the object
     post_grasp(env)
@@ -150,6 +149,10 @@ def test_env():
         if (geom_id1 == object_id and geom_id2 in geom_idx) or (geom_id2 == object_id and geom_id1 in geom_idx):
             contact_success = True
     
+    print(f"rotation_hand:\n{rotation_hand}")
+    print(f"Force:{np.sum(F_field[F_mask], axis=0)}")
+    print(f"Force_world:{np.sum(F_field_world[F_mask], axis=0)}")
+    print(f"Fv: {Fv}")
     print(f"Contact Success: {contact_success}, Grasp Success: {grasp_success}")
 
     env.render()

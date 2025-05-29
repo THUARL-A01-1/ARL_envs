@@ -62,8 +62,8 @@ def measure(env):
     Returns: Dict{List[np.adarray]}: positions, normals, and the forces of the fingers
     """
     # 常量，按照手指顺序
-    num_fingers = 2
-    finger_rotation_list = [np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])]
+    num_fingers = 2  # 黑色driver为左，白色driver为右
+    finger_rotation_list = [np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]]), np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]])]
     finger_geom_idx_list = [[mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)], [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]]
 
     rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
@@ -84,14 +84,14 @@ def measure(env):
                 P_field[geom_id] = env.mj_data.contact[i].pos[:3]
                 N_field[geom_id] = env.mj_data.contact[i].frame[:3]
         # Step 3: 使用旋转矩阵计算手指坐标系下的N矩阵, 用于接触力分解
-        N_field_finger = N_field @ (rotation @ rotation_hand.T)
+        N_field_finger = N_field @ rotation_hand @ rotation
         Fn_field = np.sum(N_field_finger * F_field, axis=1)[:, np.newaxis] * N_field_finger
         Ft_field = F_field - Fn_field
 
         # Step 4: 额外计算用于抵抗重力的竖直力
-        F_field_world = F_field @ (rotation_hand @ rotation.T)   # 将F矩阵转换到世界坐标系
-        Fv = np.sum(-F_field_world[:, 2])
-        F_mask = np.linalg.norm(F_field, axis=1) > 0.1
+        F_field_world = F_field @ rotation.T @ rotation_hand.T   # 将F矩阵转换到世界坐标系
+        Fv = np.sum(F_field_world[:, 2])
+        F_mask = np.linalg.norm(F_field, axis=1) > 0.05
 
         measurement.append({"P_field": P_field.tolist(), "N_field": N_field.tolist(), "N_field_finger": N_field_finger.tolist(), "Fn_field": Fn_field.tolist(), "Ft_field": Ft_field.tolist(), "Fv": Fv.tolist(), "F_mask": F_mask.tolist()})
 
@@ -219,9 +219,9 @@ def simulate(OBJECT_ID):
         # env.render()
 
     
-def preprocess_results():
+def preprocess_results(OBJECT_ID):
     measurement_list = []
-    with open("results/grasp_results.json", "r", encoding="utf-8") as f:
+    with open(f"results/{OBJECT_ID}/grasp_results.json", "r", encoding="utf-8") as f:
         for line in f:
             result = json.loads(line)
             contact_result = result["contact_result"]
@@ -238,16 +238,37 @@ def preprocess_results():
                     "Fv": Fv
                 })
     # save the results to a npz file
-    np.savez("results/grasp_metrics.npz", 
+    np.savez(f"results/{OBJECT_ID}/grasp_metrics.npz", 
              grasp_results=[result["grasp_result"] for result in measurement_list],
              our_metrics=[result["our_metric"] for result in measurement_list],
              FC_metrics=[result["FC_metric"] for result in measurement_list],
              distances=[result["distance"] for result in measurement_list],
              Fvs=[result["Fv"] for result in measurement_list])
     
+def combine_results():
+    grasp_results_all, our_metrics_all, FC_metrics_all, distances_all, Fvs_all  = [], [], [], [], []
+    for i in range(0, 23):
+        # if i == 18: 
+        #     continue
+        OBJECT_ID = f"{i:03d}"
+        print(f"Processing object {OBJECT_ID}...")
+        data = np.load((f"results/{OBJECT_ID}/grasp_metrics.npz"))
+        grasp_results, our_metrics, FC_metrics, distances, Fvs= data['grasp_results'], data['our_metrics'], data['FC_metrics'], data['distances'], data['Fvs']
+        grasp_results_all.extend(grasp_results)
+        our_metrics_all.extend(our_metrics)
+        FC_metrics_all.extend(FC_metrics)
+        distances_all.extend(distances)
+        Fvs_all.extend(np.abs(Fvs))  # Use absolute value of Fv
+    # save the results to a npz file
+    np.savez("results/all/grasp_metrics.npz",
+             grasp_results=grasp_results_all,
+             our_metrics=our_metrics_all,
+             FC_metrics=FC_metrics_all,
+             distances=distances_all,
+             Fvs=Fvs_all)
 
 
-def validate_result():
+def validate_result(OBJECT_ID):
     data = np.load((f"results/{OBJECT_ID}/grasp_metrics.npz"))
     grasp_results, our_metrics, FC_metrics, distances, Fvs = data['grasp_results'], data['our_metrics'], data['FC_metrics'], data['distances'], data['Fvs']
     grasp_results = data['grasp_results']
@@ -257,6 +278,7 @@ def validate_result():
     FC_metrics = np.nan_to_num(FC_metrics, nan=10)  # Replace NaN with 100
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
+    # our_metrics = our_metrics / (Fvs + 1e-6)  # Normalize the our metrics by Fv
     # FC_metrics = FC_metrics / 10 * (distances + 1e-6)  # Normalize the FC metrics by distance
 
     mask = (our_metrics < 1) & (FC_metrics < 3)  # Filter out the metrics that are too large
@@ -277,7 +299,7 @@ def validate_result():
     plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
-    plt.hist(metrics[grasp_results == True], bins=200, alpha=0.7, label='Grasp Success', color='blue')
+    plt.hist(metrics[grasp_results == True][::4], bins=200, alpha=0.7, label='Grasp Success', color='blue')
     plt.hist(metrics[grasp_results == False], bins=200, alpha=0.7, label='Grasp Failure', color='red')
     plt.xlabel('Our Metric')
     plt.ylabel('Frequency')
@@ -299,19 +321,28 @@ def validate_result():
 
 
 if __name__ == '__main__':
-    # simulate()
-    # preprocess_results()
-    # validate_result()
+
     import shutil
     base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(22, 88):
+    for i in range(0, 23):
         OBJECT_ID = f"{i:03d}"
-        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        if os.path.exists(src):
-            shutil.copyfile(src, dst)
-        else:
-            print(f"Source not found: {src}")
-        
         print(f"Processing object {OBJECT_ID}...")
-        simulate(OBJECT_ID=OBJECT_ID)
+
+        # # Simulate the grasping process
+        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        # if os.path.exists(src):
+        #     shutil.copyfile(src, dst)
+        # else:
+        #     print(f"Source not found: {src}")
+        # simulate(OBJECT_ID=OBJECT_ID)
+
+        # # Preprocess the results after simulation
+        # preprocess_results(OBJECT_ID=OBJECT_ID)
+
+        # # Validate the results
+        # validate_result(OBJECT_ID=OBJECT_ID)
+        
+    
+    combine_results()
+    validate_result(OBJECT_ID="all") 
