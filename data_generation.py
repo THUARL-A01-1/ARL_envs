@@ -140,7 +140,7 @@ def calculate_FC_metric(measurement):
         print(f"Finger {i+1}: P: {P}, N: {N}, N_finger: {N_finger}")
     # the angle of N_list[0] and N_list[1]
     alpha = -np.dot(N_list[0], N_list[1])
-    beta = -np.dot(N_finger_list[0], np.array([0, 0, 1])) - np.dot(N_finger_list[1], np.array([0, 0, 1]))
+    beta = np.dot(N_finger_list[0], np.array([0, 0, 1])) + np.dot(N_finger_list[1], np.array([0, 0, 1]))
     metric = np.array([alpha, beta])
     distance = np.linalg.norm(np.mean(np.array(P_list), axis=0) - np.array([0.07, 0.07, 0.04]))
 
@@ -186,7 +186,7 @@ def simulate(OBJECT_ID):
 
     # sample grasps from the CAD model
     try:
-        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=1000, OBJECT_ID=OBJECT_ID)
+        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=100000, OBJECT_ID=OBJECT_ID)
     except Exception as e:
         print(f"未生成无碰撞抓取, Error sampling grasps: {e}")
         return
@@ -300,8 +300,8 @@ def validate_result(OBJECT_ID):
     plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
-    plt.hist(metrics[grasp_results == True][::4], bins=200, alpha=0.7, label='Grasp Success', color='blue')
-    plt.hist(metrics[grasp_results == False], bins=200, alpha=0.7, label='Grasp Failure', color='red')
+    plt.hist(metrics[grasp_results == True], bins=20, alpha=0.7, label='Grasp Success', color='blue')
+    plt.hist(metrics[grasp_results == False], bins=20, alpha=0.7, label='Grasp Failure', color='red')
     plt.xlabel('Our Metric')
     plt.ylabel('Frequency')
     plt.legend()
@@ -329,20 +329,20 @@ if __name__ == '__main__':
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # Simulate the grasping process
-        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        if os.path.exists(src):
-            shutil.copyfile(src, dst)
-        else:
-            print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID)
+        # # Simulate the grasping process
+        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        # if os.path.exists(src):
+        #     shutil.copyfile(src, dst)
+        # else:
+        #     print(f"Source not found: {src}")
+        # simulate(OBJECT_ID=OBJECT_ID)
 
-        # Preprocess the results after simulation
-        preprocess_results(OBJECT_ID=OBJECT_ID)
+        # # Preprocess the results after simulation
+        # preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # # Validate the results
-        # validate_result(OBJECT_ID=OBJECT_ID)
+        # Validate the results
+        validate_result(OBJECT_ID=OBJECT_ID)
         
     
     # combine_results()
