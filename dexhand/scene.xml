@@ -4,7 +4,7 @@
     <include file="dexhand/dexhand.xml"/>
     <!-- your obj file here -->
     <asset>
-        <mesh file="/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets/downsampled_mesh.obj" name="object"/>
+        <mesh file="E:\2 - 3_Technical_material\Simulator\ARL_envs\cad\assets\downsampled_mesh.obj" name="object"/>
     </asset>
     <!-- The object -->
     <worldbody>
@@ -25,7 +25,7 @@
         </body> -->
         <!-- hand_base -->
         <body pos="0.0 0.0 0.0" gravcomp="1">
-            <joint name="object_joint" type="free" frictionloss="0" damping="0"/>
+            <joint name="object_joint" type="free" frictionloss="0.01" damping="0.001"/>
             <geom class="object" name="object" mesh="object" mass="0.2" material="white"/>
         </body>
     </worldbody>

@@ -85,7 +85,7 @@ class DexHandEnv(gym.Env):
                 break
         
         if self.episode_mode == "keyframe":  # Only keep the last frame in keyframe mode
-            print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
+            # print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
             self.add_frame()
         
         return self.get_observation(), self.get_reward(), self.get_done(), {}

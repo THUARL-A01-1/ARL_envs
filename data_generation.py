@@ -30,6 +30,8 @@ def grasp(env):
     """
     # apply grasping force
     env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
 
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
@@ -102,7 +104,7 @@ def post_grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     for i in range(1):
-        env.step(np.array([0, 0, 0.05, 0, 0, 0, 5]))
+        env.step(np.array([0, 0, 0.1, 0, 0, 0, 2]))
         # env.step(np.array([0, 0, -0.05, 0, 0, 0, 5]))
         # env.step(np.array([0.05, 0, 0, 0, 0, 0, 5]))
         # env.step(np.array([-0.05, 0, 0, 0, 0, 0, 5]))
@@ -115,10 +117,11 @@ def grasp_success(env):
     Args: env (DexHandEnv): The DexHand environment.
     Returns: whether the object contacts the floor.
     """
-    object_quat = env.mj_data.qpos[11:]
-    rotvec = R.from_quat(object_quat[[1,2,3,0]]).as_rotvec()
-    angle_rad = np.linalg.norm(rotvec)  # 旋转弧度
-    success = bool(angle_rad < 0.5)
+    success = True
+    # object_quat = env.mj_data.qpos[11:]
+    # rotvec = R.from_quat(object_quat[[1,2,3,0]]).as_rotvec()
+    # angle_rad = np.linalg.norm(rotvec)  # 旋转弧度
+    # success = bool(angle_rad < 0.5)
     floor_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
     if not contact_success(env):
         success = False
@@ -208,6 +211,7 @@ def simulate(OBJECT_ID, num_samples=500):
         grasp(env)
         contact_result = contact_success(env)
         if contact_result == False:
+            print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
             continue
         measurement = measure(env)
         our_metric, Fv = calculate_our_metric(measurement)
@@ -346,8 +350,8 @@ def validate_result(OBJECT_ID):
 if __name__ == '__main__':
 
     import shutil
-    base_dir = r"/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets"
-    for i in range(4,10):
+    base_dir = "E:\2 - 3_Technical_material\Simulator\ARL_envs/cad/assets"
+    for i in range(4,5):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
@@ -360,11 +364,11 @@ if __name__ == '__main__':
             print(f"Source not found: {src}")
         simulate(OBJECT_ID=OBJECT_ID, num_samples=20)
 
-        # Preprocess the results after simulation
-        preprocess_results(OBJECT_ID=OBJECT_ID)
+        # # Preprocess the results after simulation
+        # preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # Validate the results
-        validate_result(OBJECT_ID=OBJECT_ID)
+        # # Validate the results
+        # validate_result(OBJECT_ID=OBJECT_ID)
         
     
     # combine_results()
