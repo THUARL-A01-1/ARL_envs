@@ -287,15 +287,15 @@ def validate_result(OBJECT_ID):
     grasp_results, our_metrics, FC_metrics, distances, Fvs = data['grasp_results'], data['our_metrics'], data['FC_metrics'], data['distances'], data['Fvs']
     grasp_results = data['grasp_results']
     our_metrics = np.mean(data['our_metrics'], axis=1)  # Combine the metrics from both fingers
-    our_metrics = np.nan_to_num(our_metrics, nan=-10)  # Replace NaN with 100
+    our_metrics = np.nan_to_num(our_metrics, nan=10)  # Replace NaN with 100
     FC_metrics = np.sum(data['FC_metrics'], axis=1)  # Combine the metrics from both fingers
-    FC_metrics = np.nan_to_num(FC_metrics, nan=-10)  # Replace NaN with 100
+    FC_metrics = np.nan_to_num(FC_metrics, nan=10)  # Replace NaN with 100
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
     # our_metrics = our_metrics / (Fvs + 1e-6)  # Normalize the our metrics by Fv
     # FC_metrics = FC_metrics / 0.1 * (distances + 1e-6)  # Normalize the FC metrics by distance
 
-    mask = (our_metrics > 0) & (FC_metrics > 0)  # Filter out the metrics that are too large
+    mask = (our_metrics < 1) & (FC_metrics < 3)  # Filter out the metrics that are too large
     FC_metrics, our_metrics, grasp_results, distances, Fvs = FC_metrics[mask], our_metrics[mask], grasp_results[mask], distances[mask], Fvs[mask]
     metrics = our_metrics  # Normalize the our metrics by Fv
     
@@ -338,25 +338,25 @@ if __name__ == '__main__':
 
     import shutil
     base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(1, 89):
+    for i in range(0, 1):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # # Simulate the grasping process
-        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        # if os.path.exists(src):
-        #     shutil.copyfile(src, dst)
-        # else:
-        #     print(f"Source not found: {src}")
-        # simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
+        # Simulate the grasping process
+        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+        else:
+            print(f"Source not found: {src}")
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # # Validate the results
-        # validate_result(OBJECT_ID=OBJECT_ID)
+        # Validate the results
+        validate_result(OBJECT_ID=OBJECT_ID)
         
     
-    combine_results()
-    validate_result(OBJECT_ID="all") 
+    # combine_results()
+    # validate_result(OBJECT_ID="all") 
