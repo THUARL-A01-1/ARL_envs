@@ -222,7 +222,10 @@ def simulate(OBJECT_ID, num_samples=500):
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        # env.render()
+        if grasp_result == True and np.sum(FC_metric) > 2 and np.mean(our_metric) > 0.7:  # Filter out the grasps that are not rational
+            our_metric, Fv = calculate_our_metric(measurement)
+            FC_metric, distance = calculate_FC_metric(measurement)
+            env.render()
 
     
 def preprocess_results(OBJECT_ID):
@@ -238,7 +241,7 @@ def preprocess_results(OBJECT_ID):
             if contact_result == True:
                 our_metric, Fv = calculate_our_metric(measurement)
                 FC_metric, distance = calculate_FC_metric(measurement)
-                if np.sum(FC_metric) > 2 and np.mean(our_metric) > 0.8:  # Filter out the grasps that are not successful
+                if np.sum(FC_metric) > 2 and np.mean(our_metric) > 0.8:  # Filter out the grasps that are not rational
                     our_metric, Fv = calculate_our_metric(measurement)
                     FC_metric, distance = calculate_FC_metric(measurement)
 
@@ -259,7 +262,7 @@ def preprocess_results(OBJECT_ID):
     
 def combine_results():
     grasp_results_all, our_metrics_all, FC_metrics_all, distances_all, Fvs_all  = [], [], [], [], []
-    for i in range(0, 89):
+    for i in range(1, 10):
         # if i == 18: 
         #     continue
         OBJECT_ID = f"{i:03d}"
@@ -338,25 +341,25 @@ if __name__ == '__main__':
 
     import shutil
     base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(0, 1):
+    for i in range(1, 10):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # Simulate the grasping process
-        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        if os.path.exists(src):
-            shutil.copyfile(src, dst)
-        else:
-            print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
+        # # Simulate the grasping process
+        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        # if os.path.exists(src):
+        #     shutil.copyfile(src, dst)
+        # else:
+        #     print(f"Source not found: {src}")
+        # simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # Validate the results
-        validate_result(OBJECT_ID=OBJECT_ID)
+        # # Validate the results
+        # validate_result(OBJECT_ID=OBJECT_ID)
         
     
-    # combine_results()
-    # validate_result(OBJECT_ID="all") 
+    combine_results()
+    validate_result(OBJECT_ID="all") 

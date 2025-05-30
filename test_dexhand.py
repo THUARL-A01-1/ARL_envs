@@ -78,20 +78,19 @@ def grasp(env):
     # apply grasping force
     env.step(np.array([0, 0, 0, 0, 0, 0, 5]))
     env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
-    env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
 
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
     env.mj_model.body_gravcomp[body_id] = 0.0
-    env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
 
 def post_grasp(env):
     """Post-grasp the object by moving the hand, simulating the disturbance.
     Args: env (DexHandEnv): The DexHand environment.
     """
     for i in range(1):
-        env.step(np.array([0, 0, 0.05, 0, 0, 0, 20]))
-        env.step(np.array([0, 0, -0.05, 0, 0, 0, 20]))         
+        env.step(np.array([0, 0, 0.05, 0, 0, 0, 10]))
+        env.step(np.array([0, 0, -0.05, 0, 0, 0, 10]))         
 
     
 def test_env():
@@ -103,8 +102,8 @@ def test_env():
     geom_idx = [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]
 
     # pre-grasp the object
-    env.mj_data.qpos[0:3] = np.array([0, 0, 0.15])
-    env.mj_data.qpos[3:6] = np.array([0, 0, 0.3])  # reset the rotation of the hand
+    env.mj_data.qpos[0:3] = np.array([0, 0.1, 0.15])
+    env.mj_data.qpos[3:6] = np.array([0, 0, 0])  # reset the rotation of the hand
     env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
     
     
@@ -127,11 +126,11 @@ def test_env():
     N_field_finger = N_field @ rotation_hand @ rotation_right 
     F_field_world = F_field @ rotation_right.T @ rotation_hand.T
     Fv = np.sum(F_field_world[:, 2])
-    Fn_field = np.sum(N_field_finger * F_field, axis=1)[:, np.newaxis] * N_field
+    Fn_field = np.sum(N_field_finger * F_field, axis=1)[:, np.newaxis] * N_field_finger
     Ft_field = F_field - Fn_field
     
     F_mask = np.linalg.norm(Fn_field, axis=1) > 0.05
-    ratio = np.linalg.norm(Ft_field, axis=1) / np.linalg.norm(Fn_field, axis=1)
+    ratio = np.sum(np.linalg.norm(Ft_field, axis=1)) / np.sum(np.linalg.norm(Fn_field, axis=1))
 
     # print(f"Force: {sum(F_field[:, 0])}, {sum(F_field[:, 1])}, {sum(F_field[:, 2])}")
     # print(f"num_contact: {sum(F_mask)}")
