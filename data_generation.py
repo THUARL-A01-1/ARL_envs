@@ -30,8 +30,10 @@ def grasp(env):
     """
     # apply grasping force
     env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
     env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
-    env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
 
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
@@ -104,7 +106,7 @@ def post_grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     for i in range(1):
-        env.step(np.array([0, 0, 0.1, 0, 0, 0, 2]))
+        env.step(np.array([0, 0, 0.1, 0, 0, 0, 5]))
         # env.step(np.array([0, 0, -0.05, 0, 0, 0, 5]))
         # env.step(np.array([0.05, 0, 0, 0, 0, 0, 5]))
         # env.step(np.array([-0.05, 0, 0, 0, 0, 0, 5]))
@@ -118,13 +120,17 @@ def grasp_success(env):
     Returns: whether the object contacts the floor.
     """
     success = True
-    # object_quat = env.mj_data.qpos[11:]
-    # rotvec = R.from_quat(object_quat[[1,2,3,0]]).as_rotvec()
-    # angle_rad = np.linalg.norm(rotvec)  # 旋转弧度
-    # success = bool(angle_rad < 0.5)
-    floor_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+    object_quat0 = env.mj_data.qpos[11:].copy()  # 记录抓取前的物体姿态
+    post_grasp(env)  # post-grasp the object to simulate the disturbance
+    object_quat1 = env.mj_data.qpos[11:].copy()
+    rot = R.from_quat(object_quat1[[1,2,3,0]]) * R.from_quat(object_quat0[[1,2,3,0]]).inv()  # 计算物体的旋转矩阵
+    angle_rad = rot.magnitude()  # 旋转弧度
+    success = bool(angle_rad < 0.8)
+
     if not contact_success(env):
         success = False
+        
+    floor_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
     for i in range(env.mj_data.ncon):  # 遍历接触对，判断物体是否与地面接触
         geom_id1, geom_id2 = env.mj_data.contact[i].geom1, env.mj_data.contact[i].geom2
         if geom_id1 == floor_id or geom_id2 == floor_id:
@@ -214,11 +220,13 @@ def simulate(OBJECT_ID, num_samples=500):
             print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
             continue
         measurement = measure(env)
+        if measurement[0]["F_mask"].count(True) < 20 or measurement[1]["F_mask"].count(True) < 20:  # Check if the contact is sufficient
+            print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
+            continue
         our_metric, Fv = calculate_our_metric(measurement)
         FC_metric, distance = calculate_FC_metric(measurement)
 
         # post-grasp the object
-        post_grasp(env)
         grasp_result = grasp_success(env)
         
         print(f"Grasp {i+1}/{len(grasp_points)}: Contact Success: {contact_result}, Grasp Success: {grasp_result}, Our Metric: {our_metric}, FC Metric: {FC_metric}, Distance: {distance}, Fv: {Fv}")
@@ -231,10 +239,9 @@ def simulate(OBJECT_ID, num_samples=500):
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.7) or (grasp_result == False and np.mean(our_metric) < 0.4)):  # Filter out the grasps that are not rational
+        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.6) or (grasp_result == False and np.mean(our_metric) < 0.4)):  # Filter out the grasps that are not rational
             our_metric, Fv = calculate_our_metric(measurement)
             FC_metric, distance = calculate_FC_metric(measurement)
-            grasp_result = grasp_success(env)
             env.render()
 
     
@@ -350,8 +357,8 @@ def validate_result(OBJECT_ID):
 if __name__ == '__main__':
 
     import shutil
-    base_dir = "E:\2 - 3_Technical_material\Simulator\ARL_envs/cad/assets"
-    for i in range(4,5):
+    base_dir = "E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
+    for i in range(4, 5):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
@@ -364,11 +371,11 @@ if __name__ == '__main__':
             print(f"Source not found: {src}")
         simulate(OBJECT_ID=OBJECT_ID, num_samples=20)
 
-        # # Preprocess the results after simulation
-        # preprocess_results(OBJECT_ID=OBJECT_ID)
+        # Preprocess the results after simulation
+        preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # # Validate the results
-        # validate_result(OBJECT_ID=OBJECT_ID)
+        # Validate the results
+        validate_result(OBJECT_ID=OBJECT_ID)
         
     
     # combine_results()
