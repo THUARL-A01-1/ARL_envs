@@ -284,9 +284,9 @@ def validate_result(OBJECT_ID):
     grasp_results, our_metrics, FC_metrics, distances, Fvs = data['grasp_results'], data['our_metrics'], data['FC_metrics'], data['distances'], data['Fvs']
     grasp_results = data['grasp_results']
     our_metrics = np.mean(data['our_metrics'], axis=1)  # Combine the metrics from both fingers
-    our_metrics = np.nan_to_num(our_metrics, nan=10)  # Replace NaN with 100
+    our_metrics = np.nan_to_num(our_metrics, nan=-10)  # Replace NaN with 100
     FC_metrics = np.sum(data['FC_metrics'], axis=1)  # Combine the metrics from both fingers
-    FC_metrics = np.nan_to_num(FC_metrics, nan=10)  # Replace NaN with 100
+    FC_metrics = np.nan_to_num(FC_metrics, nan=-10)  # Replace NaN with 100
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
     # our_metrics = our_metrics / (Fvs + 1e-6)  # Normalize the our metrics by Fv
@@ -310,7 +310,7 @@ def validate_result(OBJECT_ID):
     plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
-    plt.hist(metrics[grasp_results == True][::4], bins=200, alpha=0.5, label='Grasp Success', color='blue')
+    plt.hist(metrics[grasp_results == True], bins=200, alpha=0.5, label='Grasp Success', color='blue')
     plt.hist(metrics[grasp_results == False], bins=200, alpha=0.5, label='Grasp Failure', color='red')
     plt.xlabel('Our Metric')
     plt.ylabel('Frequency')
@@ -339,14 +339,14 @@ if __name__ == '__main__':
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # Simulate the grasping process
-        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        if os.path.exists(src):
-            shutil.copyfile(src, dst)
-        else:
-            print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
+        # # Simulate the grasping process
+        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        # if os.path.exists(src):
+        #     shutil.copyfile(src, dst)
+        # else:
+        #     print(f"Source not found: {src}")
+        # simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
