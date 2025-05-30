@@ -25,8 +25,8 @@
         </body> -->
         <!-- hand_base -->
         <body pos="0.0 0.0 0.0" gravcomp="1">
-            <freejoint name="object_joint"/>
-            <geom class="object" name="object" mesh="object" mass="0.1" material="white"/>
+            <joint name="object_joint" type="free" frictionloss="0" damping="0"/>
+            <geom class="object" name="object" mesh="object" mass="0.2" material="white"/>
         </body>
     </worldbody>
 </mujoco>
