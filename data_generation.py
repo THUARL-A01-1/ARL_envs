@@ -231,7 +231,7 @@ def simulate(OBJECT_ID, num_samples=500):
             our_metric, Fv = calculate_our_metric(measurement)
             FC_metric, distance = calculate_FC_metric(measurement)
             grasp_result = grasp_success(env)
-            env.render()
+            # env.render()
 
     
 def preprocess_results(OBJECT_ID):
@@ -347,7 +347,7 @@ if __name__ == '__main__':
 
     import shutil
     base_dir = r"/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets"
-    for i in range(2,3):
+    for i in range(89):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
@@ -358,7 +358,7 @@ if __name__ == '__main__':
             shutil.copyfile(src, dst)
         else:
             print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
