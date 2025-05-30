@@ -115,12 +115,12 @@ def grasp_success(env):
     Args: env (DexHandEnv): The DexHand environment.
     Returns: whether the object contacts the floor.
     """
-    object_quat = env.mj_data.qpos[11:]
-    rotvec = R.from_quat(object_quat[[1,2,3,0]]).as_rotvec()
-    angle_rad = np.linalg.norm(rotvec)  # 旋转弧度
-    success = bool(angle_rad < 2)
+    # object_quat = env.mj_data.qpos[11:]
+    # rotvec = R.from_quat(object_quat[[1,2,3,0]]).as_rotvec()
+    # angle_rad = np.linalg.norm(rotvec)  # 旋转弧度
+    # success = bool(angle_rad < 2)
     floor_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
-    # success = True
+    success = True
     for i in range(env.mj_data.ncon):  # 遍历接触对，判断物体是否与地面接触
         geom_id1, geom_id2 = env.mj_data.contact[i].geom1, env.mj_data.contact[i].geom2
         if geom_id1 == floor_id or geom_id2 == floor_id:
