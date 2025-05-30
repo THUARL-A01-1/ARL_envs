@@ -30,8 +30,8 @@ def grasp(env):
     """
     # apply grasping force
     env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
-    # env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
-    # env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+    env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
+    env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
 
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
@@ -231,7 +231,7 @@ def simulate(OBJECT_ID, num_samples=500):
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.7) or (grasp_result == False and np.mean(our_metric) < 0.3)):  # Filter out the grasps that are not rational
+        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.7) or (grasp_result == False and np.mean(our_metric) < 0.4)):  # Filter out the grasps that are not rational
             our_metric, Fv = calculate_our_metric(measurement)
             FC_metric, distance = calculate_FC_metric(measurement)
             grasp_result = grasp_success(env)
