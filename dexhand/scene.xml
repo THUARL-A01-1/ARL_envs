@@ -25,7 +25,7 @@
         </body> -->
         <!-- hand_base -->
         <body pos="0.0 0.0 0.0" gravcomp="1">
-            <joint name="object_joint" type="free" frictionloss="0.01" damping="0.01"/>
+            <joint name="object_joint" type="free" frictionloss="0.001" damping="0.001"/>
             <geom class="object" name="object" mesh="object" mass="0.2" material="white"/>
         </body>
     </worldbody>

@@ -212,13 +212,13 @@ def main(num_samples=500, OBJECT_ID="000"):
             print(f"Error sampling grasps: {e}")
             return
 
-    # Visualize the sampled grasps
-    try:
-        initial_gripper = initialize_gripper()
-        visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper)
-    except Exception as e:
-        print(f"Error visualizing grasps: {e}")
-        return
+    # # Visualize the sampled grasps
+    # try:
+    #     initial_gripper = initialize_gripper()
+    #     visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper)
+    # except Exception as e:
+    #     print(f"Error visualizing grasps: {e}")
+    #     return
     
     return grasp_points, grasp_normals, grasp_angles, grasp_depths
 

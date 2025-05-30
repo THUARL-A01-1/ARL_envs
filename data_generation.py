@@ -106,12 +106,12 @@ def post_grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     for i in range(1):
-        env.step(np.array([0, 0, 0.1, 0, 0, 0, 5]))
-        # env.step(np.array([0, 0, -0.05, 0, 0, 0, 5]))
-        # env.step(np.array([0.05, 0, 0, 0, 0, 0, 5]))
-        # env.step(np.array([-0.05, 0, 0, 0, 0, 0, 5]))
-        # env.step(np.array([0, 0.05, 0, 0, 0, 0, 5]))
-        # env.step(np.array([0, -0.05, 0, 0, 0, 0, 5]))
+        env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
+        env.step(np.array([0, 0, -0.1, 0, 0, 0, 10]))
+        env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
+        env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
+        env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
+        env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
 
 def grasp_success(env):
     """
@@ -125,7 +125,7 @@ def grasp_success(env):
     object_quat1 = env.mj_data.qpos[11:].copy()
     rot = R.from_quat(object_quat1[[1,2,3,0]]) * R.from_quat(object_quat0[[1,2,3,0]]).inv()  # 计算物体的旋转矩阵
     angle_rad = rot.magnitude()  # 旋转弧度
-    success = bool(angle_rad < 0.8)
+    success = bool(angle_rad < 0.3)  # threshold need to be modified
 
     if not contact_success(env):
         success = False
@@ -239,7 +239,7 @@ def simulate(OBJECT_ID, num_samples=500):
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.6) or (grasp_result == False and np.mean(our_metric) < 0.4)):  # Filter out the grasps that are not rational
+        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.6) or (grasp_result == False and np.mean(our_metric) < 0.3)):  # Filter out the grasps that are not rational
             our_metric, Fv = calculate_our_metric(measurement)
             FC_metric, distance = calculate_FC_metric(measurement)
             env.render()
