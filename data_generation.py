@@ -169,9 +169,11 @@ def calculate_our_metric(measurement):
         # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
         # ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
 
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
-        ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
-        metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
+        # F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
+        # ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
+        # metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
+
+        metric[i] = np.sum(np.linalg.norm(measurement[i]["Ft_field"], axis=1)) / np.sum(np.linalg.norm(measurement[i]["Fn_field"], axis=1))
         Fv[i] = measurement[i]["Fv"]
         # print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
     
@@ -344,7 +346,7 @@ if __name__ == '__main__':
             shutil.copyfile(src, dst)
         else:
             print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
