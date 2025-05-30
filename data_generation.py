@@ -105,10 +105,10 @@ def post_grasp(env):
     for i in range(1):
         env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
         env.step(np.array([0, 0, -0.1, 0, 0, 0, 10]))
-        # env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
-        # env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
-        # env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
-        # env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
+        env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
+        env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
+        env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
+        env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
 
 def grasp_success(env):
     """
@@ -137,10 +137,10 @@ def calculate_FC_metric(measurement):
         P_list.append(P)
         N_list.append(N)
         N_finger_list.append(N_finger)
-        print(f"Finger {i+1}: P: {P}, N: {N}, N_finger: {N_finger}")
+        # print(f"Finger {i+1}: P: {P}, N: {N}, N_finger: {N_finger}")
     # the angle of N_list[0] and N_list[1]
-    alpha = -np.dot(N_list[0], N_list[1])
-    beta = np.dot(N_finger_list[0], np.array([0, 0, 1])) + np.dot(N_finger_list[1], np.array([0, 0, 1]))
+    alpha = -np.dot(N_list[0], N_list[1]) / (np.linalg.norm(N_list[0]) * np.linalg.norm(N_list[1]))
+    beta = np.dot(N_finger_list[0], np.array([0, 0, 1])) / (np.linalg.norm(N_finger_list[0])) + np.dot(N_finger_list[1], np.array([0, 0, 1])) / (np.linalg.norm(N_finger_list[1]))
     metric = np.array([alpha, beta])
     distance = np.linalg.norm(np.mean(np.array(P_list), axis=0) - np.array([0.07, 0.07, 0.04]))
 
@@ -169,15 +169,15 @@ def calculate_our_metric(measurement):
         # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
         # ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
 
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
         ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
         Fv[i] = measurement[i]["Fv"]
-        print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
+        # print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
     
     return metric, Fv
     
-def simulate(OBJECT_ID):
+def simulate(OBJECT_ID, num_samples=500):
     # initialize the environment
     env = DexHandEnv()
     _ = env.reset()
@@ -186,7 +186,7 @@ def simulate(OBJECT_ID):
 
     # sample grasps from the CAD model
     try:
-        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=100000, OBJECT_ID=OBJECT_ID)
+        grasp_points, grasp_normals, grasp_angles, grasp_depths = cad.grasp_sampling.main(num_samples=num_samples, OBJECT_ID=OBJECT_ID)
     except Exception as e:
         print(f"未生成无碰撞抓取, Error sampling grasps: {e}")
         return
@@ -223,6 +223,8 @@ def simulate(OBJECT_ID):
 def preprocess_results(OBJECT_ID):
     measurement_list = []
     with open(f"results/{OBJECT_ID}/grasp_results.json", "r", encoding="utf-8") as f:
+        print(f"The number of grasps: {len(f.readlines())}")
+        f.seek(0)
         for line in f:
             result = json.loads(line)
             contact_result = result["contact_result"]
@@ -231,6 +233,10 @@ def preprocess_results(OBJECT_ID):
             if contact_result == True:
                 our_metric, Fv = calculate_our_metric(measurement)
                 FC_metric, distance = calculate_FC_metric(measurement)
+                if np.sum(FC_metric) > 2 and np.mean(our_metric) > 0.8:  # Filter out the grasps that are not successful
+                    our_metric, Fv = calculate_our_metric(measurement)
+                    FC_metric, distance = calculate_FC_metric(measurement)
+
                 measurement_list.append({
                     "grasp_result": grasp_result,
                     "our_metric": our_metric,
@@ -248,7 +254,7 @@ def preprocess_results(OBJECT_ID):
     
 def combine_results():
     grasp_results_all, our_metrics_all, FC_metrics_all, distances_all, Fvs_all  = [], [], [], [], []
-    for i in range(0, 23):
+    for i in range(0, 89):
         # if i == 18: 
         #     continue
         OBJECT_ID = f"{i:03d}"
@@ -261,6 +267,8 @@ def combine_results():
         distances_all.extend(distances)
         Fvs_all.extend(np.abs(Fvs))  # Use absolute value of Fv
     # save the results to a npz file
+    if not os.path.exists("results/all"):
+        os.makedirs("results/all")
     np.savez("results/all/grasp_metrics.npz",
              grasp_results=grasp_results_all,
              our_metrics=our_metrics_all,
@@ -280,10 +288,10 @@ def validate_result(OBJECT_ID):
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
     # our_metrics = our_metrics / (Fvs + 1e-6)  # Normalize the our metrics by Fv
-    # FC_metrics = FC_metrics / 10 * (distances + 1e-6)  # Normalize the FC metrics by distance
+    # FC_metrics = FC_metrics / 0.1 * (distances + 1e-6)  # Normalize the FC metrics by distance
 
-    mask = (our_metrics < 1) & (FC_metrics < 3)  # Filter out the metrics that are too large
-    FC_metrics, our_metrics, grasp_results = FC_metrics[mask], our_metrics[mask], grasp_results[mask]
+    mask = (our_metrics > 0) & (FC_metrics > 0)  # Filter out the metrics that are too large
+    FC_metrics, our_metrics, grasp_results, distances, Fvs = FC_metrics[mask], our_metrics[mask], grasp_results[mask], distances[mask], Fvs[mask]
     metrics = our_metrics  # Normalize the our metrics by Fv
     
     # 绘制散点图，横轴为our_metric，纵轴为FC_metric
@@ -300,8 +308,8 @@ def validate_result(OBJECT_ID):
     plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
-    plt.hist(metrics[grasp_results == True], bins=20, alpha=0.7, label='Grasp Success', color='blue')
-    plt.hist(metrics[grasp_results == False], bins=20, alpha=0.7, label='Grasp Failure', color='red')
+    plt.hist(metrics[grasp_results == True][::4], bins=200, alpha=0.5, label='Grasp Success', color='blue')
+    plt.hist(metrics[grasp_results == False], bins=200, alpha=0.5, label='Grasp Failure', color='red')
     plt.xlabel('Our Metric')
     plt.ylabel('Frequency')
     plt.legend()
@@ -325,21 +333,21 @@ if __name__ == '__main__':
 
     import shutil
     base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(88, 89):
+    for i in range(0, 1):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # # Simulate the grasping process
-        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        # if os.path.exists(src):
-        #     shutil.copyfile(src, dst)
-        # else:
-        #     print(f"Source not found: {src}")
-        # simulate(OBJECT_ID=OBJECT_ID)
+        # Simulate the grasping process
+        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+        else:
+            print(f"Source not found: {src}")
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
 
-        # # Preprocess the results after simulation
-        # preprocess_results(OBJECT_ID=OBJECT_ID)
+        # Preprocess the results after simulation
+        preprocess_results(OBJECT_ID=OBJECT_ID)
 
         # Validate the results
         validate_result(OBJECT_ID=OBJECT_ID)

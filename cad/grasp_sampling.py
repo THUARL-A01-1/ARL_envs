@@ -195,16 +195,22 @@ def main(num_samples=500, OBJECT_ID="000"):
         return
     
     # Sample grasp points, normals, and depths
-    try:
-        grasp_points = sample_grasp_point(point_cloud, num_samples)
-        grasp_normals = sample_grasp_normal(num_samples)
-        grasp_angles = sample_grasp_angle(num_samples)
-        grasp_depths = sample_grasp_depth(num_samples)
-        grasp_collisions = sample_grasp_collision(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initialize_gripper())
-        print(f"Sampled {num_samples} grasps, with {sum(grasp_collisions)} collisions detected.")
-    except Exception as e:
-        print(f"Error sampling grasps: {e}")
-        return
+    grasp_points, grasp_normals, grasp_angles, grasp_depths = [], [], [], []
+    while len(grasp_points) < num_samples:
+        try:
+            grasp_points_sample = sample_grasp_point(point_cloud, 30 * num_samples) # 根据经验，每次采样30倍的数量
+            grasp_normals_sample = sample_grasp_normal(30 * num_samples)
+            grasp_angles_sample = sample_grasp_angle(30 * num_samples)
+            grasp_depths_sample = sample_grasp_depth(30 * num_samples)
+            grasp_collisions_sample = sample_grasp_collision(point_cloud, grasp_points_sample, grasp_normals_sample, grasp_angles_sample, grasp_depths_sample, initialize_gripper())
+            print(f"Sampled {30 * num_samples} grasps, with {sum(grasp_collisions_sample)} collisions detected.")
+            grasp_points.extend(grasp_points_sample[np.logical_not(grasp_collisions_sample)])
+            grasp_normals.extend(grasp_normals_sample[np.logical_not(grasp_collisions_sample)])
+            grasp_angles.extend(grasp_angles_sample[np.logical_not(grasp_collisions_sample)])
+            grasp_depths.extend(grasp_depths_sample[np.logical_not(grasp_collisions_sample)])            
+        except Exception as e:
+            print(f"Error sampling grasps: {e}")
+            return
 
     # # Visualize the sampled grasps
     # try:
@@ -214,7 +220,7 @@ def main(num_samples=500, OBJECT_ID="000"):
     #     print(f"Error visualizing grasps: {e}")
     #     return
     
-    return grasp_points[np.logical_not(grasp_collisions)], grasp_normals[np.logical_not(grasp_collisions)], grasp_angles[np.logical_not(grasp_collisions)], grasp_depths[np.logical_not(grasp_collisions)]
+    return grasp_points, grasp_normals, grasp_angles, grasp_depths
 
 if __name__ == "__main__":
     main()
