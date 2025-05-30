@@ -171,9 +171,12 @@ def calculate_our_metric(measurement):
 
         # F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
         # ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
+        
         # metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
 
-        metric[i] = np.sum(np.linalg.norm(measurement[i]["Ft_field"], axis=1)) / np.sum(np.linalg.norm(measurement[i]["Fn_field"], axis=1))
+        metric[i] = np.sum(np.linalg.norm(measurement[i]["Ft_field"], axis=1)) / np.sum(np.linalg.norm(measurement[i]
+        ["Fn_field"], axis=1))
+
         Fv[i] = measurement[i]["Fv"]
         # print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
     
@@ -335,25 +338,25 @@ if __name__ == '__main__':
 
     import shutil
     base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(0, 1):
+    for i in range(1, 89):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # Simulate the grasping process
-        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        if os.path.exists(src):
-            shutil.copyfile(src, dst)
-        else:
-            print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
+        # # Simulate the grasping process
+        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        # if os.path.exists(src):
+        #     shutil.copyfile(src, dst)
+        # else:
+        #     print(f"Source not found: {src}")
+        # simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # Validate the results
-        validate_result(OBJECT_ID=OBJECT_ID)
+        # # Validate the results
+        # validate_result(OBJECT_ID=OBJECT_ID)
         
     
-    # combine_results()
-    # validate_result(OBJECT_ID="all") 
+    combine_results()
+    validate_result(OBJECT_ID="all") 
