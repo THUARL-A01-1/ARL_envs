@@ -339,14 +339,14 @@ if __name__ == '__main__':
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # # Simulate the grasping process
-        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        # if os.path.exists(src):
-        #     shutil.copyfile(src, dst)
-        # else:
-        #     print(f"Source not found: {src}")
-        # simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
+        # Simulate the grasping process
+        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+        else:
+            print(f"Source not found: {src}")
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
