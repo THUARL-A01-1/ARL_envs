@@ -29,13 +29,12 @@ def grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     # apply grasping force
-    env.step(np.array([0, 0, 0, 0, 0, 0, 5]))
-    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
 
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
     env.mj_model.body_gravcomp[body_id] = 0.0
-    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 20]))
 
 def contact_success(env):
     """Check if the object is in contact with the hand.
@@ -105,10 +104,10 @@ def post_grasp(env):
     for i in range(1):
         env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
         env.step(np.array([0, 0, -0.1, 0, 0, 0, 10]))
-        env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
-        env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
-        env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
-        env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
+        # env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
+        # env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
+        # env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
+        # env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
 
 def grasp_success(env):
     """
@@ -116,11 +115,15 @@ def grasp_success(env):
     Args: env (DexHandEnv): The DexHand environment.
     Returns: whether the object contacts the floor.
     """
-    floor_idx = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
-    success = True
+    object_quat = env.mj_data.qpos[11:]
+    rotvec = R.from_quat(object_quat[[1,2,3,0]]).as_rotvec()
+    angle_rad = np.linalg.norm(rotvec)  # 旋转弧度
+    success = bool(angle_rad < 2)
+    floor_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+    # success = True
     for i in range(env.mj_data.ncon):  # 遍历接触对，判断物体是否与地面接触
         geom_id1, geom_id2 = env.mj_data.contact[i].geom1, env.mj_data.contact[i].geom2
-        if geom_id1 == floor_idx or geom_id2 == floor_idx:
+        if geom_id1 == floor_id or geom_id2 == floor_id:
             success = False
             break
     
@@ -204,6 +207,8 @@ def simulate(OBJECT_ID, num_samples=500):
         # grasp the object
         grasp(env)
         contact_result = contact_success(env)
+        if contact_result == False:
+            continue
         measurement = measure(env)
         our_metric, Fv = calculate_our_metric(measurement)
         FC_metric, distance = calculate_FC_metric(measurement)
@@ -222,9 +227,10 @@ def simulate(OBJECT_ID, num_samples=500):
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        if grasp_result == True and np.sum(FC_metric) > 2 and np.mean(our_metric) > 0.7:  # Filter out the grasps that are not rational
+        if contact_result == True and grasp_result == False and np.mean(our_metric) < 0.3:  # Filter out the grasps that are not rational
             our_metric, Fv = calculate_our_metric(measurement)
             FC_metric, distance = calculate_FC_metric(measurement)
+            grasp_result = grasp_success(env)
             env.render()
 
     
@@ -340,26 +346,26 @@ def validate_result(OBJECT_ID):
 if __name__ == '__main__':
 
     import shutil
-    base_dir = r"E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(1, 10):
+    base_dir = r"/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets"
+    for i in range(2,3):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
-        # # Simulate the grasping process
-        # src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        # dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        # if os.path.exists(src):
-        #     shutil.copyfile(src, dst)
-        # else:
-        #     print(f"Source not found: {src}")
-        # simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
+        # Simulate the grasping process
+        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+        dst = os.path.join(base_dir, "downsampled_mesh.obj")
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+        else:
+            print(f"Source not found: {src}")
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=100)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # # Validate the results
-        # validate_result(OBJECT_ID=OBJECT_ID)
+        # Validate the results
+        validate_result(OBJECT_ID=OBJECT_ID)
         
     
-    combine_results()
-    validate_result(OBJECT_ID="all") 
+    # combine_results()
+    # validate_result(OBJECT_ID="all") 
