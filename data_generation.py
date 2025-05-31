@@ -15,7 +15,7 @@ def pre_grasp(env, point, normal, angle, depth):
     Args: env (DexHandEnv): The DexHand environment. point, normal, depth: Target position of shape (3, 3, 1).
     Note: translation: qpos[0:3], rotation: qpos[3:6]
     """
-    translation = point + normal * (depth + 0.13)  # 0.13 is the offset from the base mount to the center of the fingers
+    translation = point + normal * (depth + 0.15)  # 0.13 is the offset from the base mount to the center of the fingers
     R_to_normal, _ = R.align_vectors([normal], [[0, 0, 1]])
     R_about_normal = R.from_rotvec(angle * normal)
     rot = R_about_normal * R_to_normal
@@ -29,16 +29,13 @@ def grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     # apply grasping force
-    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
-    env.step(np.array([0, 0, 0, 0, 0, 0, -10]))
-    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
-    env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
-    # env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 3]))
+    env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
 
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
     env.mj_model.body_gravcomp[body_id] = 0.0
-    env.step(np.array([0, 0, 0, 0, 0, 0, 10]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 3]))
 
 def contact_success(env):
     """Check if the object is in contact with the hand.
@@ -106,12 +103,12 @@ def post_grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     for i in range(1):
-        env.step(np.array([0, 0, 0.1, 0, 0, 0, 10]))
-        env.step(np.array([0, 0, -0.1, 0, 0, 0, 10]))
-        env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
-        env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
-        env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
-        env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
+        env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
+        # env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
+        # env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
+        # env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
+        # env.step(np.array([0, 0.1, 0, 0, 0, 0, 10]))
+        # env.step(np.array([0, -0.1, 0, 0, 0, 0, 10]))
 
 def grasp_success(env):
     """
@@ -125,7 +122,7 @@ def grasp_success(env):
     object_quat1 = env.mj_data.qpos[11:].copy()
     rot = R.from_quat(object_quat1[[1,2,3,0]]) * R.from_quat(object_quat0[[1,2,3,0]]).inv()  # 计算物体的旋转矩阵
     angle_rad = rot.magnitude()  # 旋转弧度
-    success = bool(angle_rad < 0.3)  # threshold need to be modified
+    success = bool(angle_rad < 1.57)  # threshold need to be modified
 
     if not contact_success(env):
         success = False
@@ -182,12 +179,12 @@ def calculate_our_metric(measurement):
         # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
         # ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
 
-        # F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
-        # ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
+        ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         
-        # metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
+        metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
 
-        metric[i] = np.sum(np.linalg.norm(measurement[i]["Ft_field"], axis=1)) / np.sum(np.linalg.norm(measurement[i]["Fn_field"], axis=1))
+        # metric[i] = np.sum(np.linalg.norm(measurement[i]["Ft_field"], axis=1)) / np.sum(np.linalg.norm(measurement[i]["Fn_field"], axis=1))
 
         Fv[i] = measurement[i]["Fv"]
         # print(f"Finger {i+1}: Metric: {sum(ratio[F_mask]) / sum(F_mask)}, Fv: {Fv[i]}")
@@ -218,11 +215,12 @@ def simulate(OBJECT_ID, num_samples=500):
         contact_result = contact_success(env)
         if contact_result == False:
             print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
+            # env.render()
             continue
         measurement = measure(env)
-        if measurement[0]["F_mask"].count(True) < 20 or measurement[1]["F_mask"].count(True) < 20:  # Check if the contact is sufficient
-            print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
-            continue
+        # if measurement[0]["F_mask"].count(True) < 20 or measurement[1]["F_mask"].count(True) < 20:  # Check if the contact is sufficient
+        #     print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
+        #     continue
         our_metric, Fv = calculate_our_metric(measurement)
         FC_metric, distance = calculate_FC_metric(measurement)
 
@@ -239,10 +237,10 @@ def simulate(OBJECT_ID, num_samples=500):
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.6) or (grasp_result == False and np.mean(our_metric) < 0.3)):  # Filter out the grasps that are not rational
+        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.6) or (grasp_result == False and np.mean(our_metric) < 0.4)):  # Filter out the grasps that are not rational
             our_metric, Fv = calculate_our_metric(measurement)
             FC_metric, distance = calculate_FC_metric(measurement)
-            env.render()
+            # env.render()
 
     
 def preprocess_results(OBJECT_ID):
@@ -279,7 +277,7 @@ def preprocess_results(OBJECT_ID):
     
 def combine_results():
     grasp_results_all, our_metrics_all, FC_metrics_all, distances_all, Fvs_all  = [], [], [], [], []
-    for i in range(1, 10):
+    for i in range(27):
         # if i == 18: 
         #     continue
         OBJECT_ID = f"{i:03d}"
@@ -357,8 +355,8 @@ def validate_result(OBJECT_ID):
 if __name__ == '__main__':
 
     import shutil
-    base_dir = "E:/2 - 3_Technical_material/Simulator/ARL_envs/cad/assets"
-    for i in range(4, 5):
+    base_dir = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets"
+    for i in range(89):
         OBJECT_ID = f"{i:03d}"
         print(f"Processing object {OBJECT_ID}...")
 
@@ -369,13 +367,13 @@ if __name__ == '__main__':
             shutil.copyfile(src, dst)
         else:
             print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=20)
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=600)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
 
-        # Validate the results
-        validate_result(OBJECT_ID=OBJECT_ID)
+        # # Validate the results
+        # validate_result(OBJECT_ID=OBJECT_ID)
         
     
     # combine_results()
