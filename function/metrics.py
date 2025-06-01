@@ -53,10 +53,10 @@ def calculate_G_matrix(P_field, N_field, centroid):
         friction_cones[i * 8: (i + 1) * 8, :] = friction_cone  # (8, 3): The friction cone vectors for the current contact point
         G[i * 8: (i + 1) * 8, :] = friction_cone @ W  # (8, 6): The transition from the friction cone to the object wrench
     
-    return G, friction_cones
+    return G.copy(), friction_cones.copy()
 
 
-def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0])):
+def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), draw=False):
     """
     Calculate the closure metric of a grasp based on the contact points and their normals.
     Args:
@@ -70,27 +70,50 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0])):
     """
     # Calculate the G_total matrix for all fingers
     num_fingers = len(measurement)
-    G_total, P_field_total, N_field_total, friction_cones_total = [], [], [], []
+    G_total, G_finger_total, P_field_total, N_field_total, friction_cones_total = [], [], [], [], []
     for i in range(num_fingers):
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
-        P_field, N_field = np.array(measurement[i]["P_field"])[F_mask], np.array(measurement[i]["N_field"])[F_mask]
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
+        P_field, N_field, N_field_finger = np.array(measurement[i]["P_field"])[F_mask], np.array(measurement[i]["N_field"])[F_mask], np.array(measurement[i]["N_field_finger"])[F_mask]
         P_field_total.append(P_field)  # (N, 3): The position field of all contact points
         N_field_total.append(N_field)
         G, friction_cones = calculate_G_matrix(P_field, N_field, centroid)
+        G_finger, _ = calculate_G_matrix(P_field, N_field_finger, centroid)
         friction_cones_total.append(friction_cones)  # (N * 8, 3): The friction cone vectors for all contact points
         G_total.append(G)
+        G_finger_total.append(G_finger)
     P_field_total = np.concatenate(P_field_total, axis=0)  # (N, 3): The position field of all contact points
     P_field_total = P_field_total.reshape(1, -1, 3).transpose(1, 0, 2).repeat(8, axis=0).reshape(-1, 3)
     N_field_total = np.concatenate(N_field_total, axis=0)  # (N, 3): The normal field of all contact points
     N_field_total = N_field_total.reshape(1, -1, 3).transpose(1, 0, 2).repeat(8, axis=0).reshape(-1, 3)
     friction_cones_total = np.concatenate(friction_cones_total, axis=0)  # (N * 8, 3): The friction cone vectors for all contact points
     G_total = np.concatenate(G_total, axis=0)  # (N * 8, 6)
+    G_finger_total = np.concatenate(G_finger_total, axis=0)  # (N * 8, 6)
 
     # Calculate the closure metric by solving the optimization problem
     from scipy.optimize import linprog
+    from scipy.optimize import minimize
     G_a = G_total[:, [0, 1, 3, 4, 5]]  # (N * 8, 5): The equality constraint matrix
     G_f = G_total[:, [2]]  # (N * 8, 1): The inequality constraint matrix
+    G_p = G_finger_total[:, [2]]  # (N * 8, 1): The power matrix: The sum of the relative z force is 1
     n = G_a.shape[0]  # a 的长度
+
+
+    # # 初始猜测
+    # x0 = np.ones(n + 1) / (n + 1)
+
+    # # 等式约束
+    # def eq1(x):  # G_f @ a - f = 0
+    #     return G_f.T @ x[:-1] - x[-1]
+    # def eq2(x):  # sum(a) = 1
+    #     return G_p.T @ x[:-1] - 1
+    # def eq3(x):  # G_a @ a = 0
+    #     return G_a.T @ x[:-1]
+
+    # constraints = [
+    #     {'type': 'eq', 'fun': eq1},
+    #     {'type': 'eq', 'fun': eq2},
+    #     {'type': 'eq', 'fun': eq3}
+    # ]
 
     # 目标函数：minimize -f
     c = np.zeros(n + 1)
@@ -98,7 +121,7 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0])):
     # 等式约束
     A_eq = np.vstack(
         [np.hstack([G_f.T, -np.ones((G_f.shape[1], 1))]),  # G_f @ a - f = 0
-         np.hstack([np.ones((1, n)), np.zeros((1, 1))]),  # sum(a) = 1
+         np.hstack([G_p.T, np.zeros((1, 1))]),  # G_p @ a = 1
          np.hstack([G_a.T, np.zeros((G_a.shape[1], 1))])])  # G_a @ a = 0
     b_eq = np.concatenate(
         [np.zeros(G_f.shape[1]), 
@@ -106,39 +129,48 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0])):
          np.zeros(G_a.shape[1])])
 
     # 变量范围
-    bounds = [(0, None)] * n + [(None, None)]  # a >= 0, f 无约束
+    bounds = [(0, 16/n)] * n + [(None, None)]  # a >= 0, f 无约束
 
-    # 求解
+    # # 求解
     res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+    # res = minimize(closure_objective, x0, args=(0.01,), constraints=constraints, bounds=bounds, method='SLSQP')
+
     if res.success:
         a_opt = res.x[:-1]
         f_opt = res.x[-1]
-        print("最优解 f =", f_opt)
+        # print("最优解 f =", f_opt)
     else:
         f_opt = 0
         print("优化失败")
     
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    if draw == True:
+        print(f"f: {friction_cones_total[a_opt > 0.001]} {a_opt[a_opt > 0.001]}")
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
 
-    # 绘制实心箭头（quiver 默认就是实心的）
-    ax.quiver(
-        P_field_total[:, 0], P_field_total[:, 1], P_field_total[:, 2],
-        a_opt*friction_cones_total[:, 0], a_opt*friction_cones_total[:, 1], a_opt*friction_cones_total[:, 2],
-        length=0.01, normalize=False, color='b', arrow_length_ratio=0.3
-    )
-    ax.scatter3D(centroid[0], centroid[1], centroid[2], color='r', s=100, label='Centroid')  # 绘制物体质心
-
-    # 加上 xyz 轴标签
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    plt.title('3D Normal Vectors')
-    plt.show()
+        # 绘制实心箭头（quiver 默认就是实心的）
+        ax.quiver(
+            P_field_total[:, 0], P_field_total[:, 1], P_field_total[:, 2],
+            a_opt*N_field_total[:, 0], a_opt*N_field_total[:, 1], a_opt*N_field_total[:, 2],
+            length=0.01, normalize=False, color='b', alpha=0.3, arrow_length_ratio=0.3)
+        ax.quiver(
+            P_field_total[:, 0], P_field_total[:, 1], P_field_total[:, 2],
+            a_opt*friction_cones_total[:, 0], a_opt*friction_cones_total[:, 1], a_opt*friction_cones_total[:, 2],
+            length=0.01, normalize=False, color='r', arrow_length_ratio=0.3)
+        ax.scatter3D(centroid[0], centroid[1], centroid[2], color='r', s=100, label='Centroid')  # 绘制物体质心
+        # 加上 xyz 轴标签
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.title('3D Normal Vectors')
+        plt.show()
 
     return f_opt
 
-
+def closure_objective(x, lambda_reg=1):
+    a = x[:-1]
+    f = x[-1]
+    return -f + lambda_reg * np.linalg.norm(a)**2
 
 
 
@@ -147,7 +179,7 @@ def calculate_antipodal_metric(measurement, centroid=np.array([0, 0, 0])):
     metric = np.zeros(num_fingers)
     P_list, N_list, N_finger_list = [], [], []
     for i in range(num_fingers):
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
         P_field, N_field, N_field_finger = np.array(measurement[i]["P_field"]), np.array(measurement[i]["N_field"]), np.array(measurement[i]["N_field_finger"])
         P, N, N_finger = np.mean(P_field[F_mask], axis=0), np.mean(N_field[F_mask], axis=0), np.mean(N_field_finger[F_mask], axis=0)
         P_list.append(P)
@@ -185,7 +217,7 @@ def calculate_our_metric(measurement):
         # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
         # ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
 
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.05
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
         ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         
         metric[i] = sum(ratio[F_mask]) / (sum(F_mask))

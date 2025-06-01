@@ -24,20 +24,23 @@ def pre_grasp(env, point, normal, angle, depth):
     rotation = rot.as_euler('XYZ', degrees=False)
     env.mj_data.qpos[0:3] = translation
     env.mj_data.qpos[3:6] = rotation
-    env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 9]))
 
 def grasp(env):
     """Grasp the object by applying a force to the hand, and then gravity.
     Args: env (DexHandEnv): The DexHand environment.
     """
     # apply grasping force
-    env.step(np.array([0, 0, 0, 0, 0, 0, 3]))
-    env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
-
+    env.step(np.array([0, 0, 0, 0, 0, 0, 9]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0, -9]))
+    # env.step(np.array([0, 0, 0, 0, 0, 0, 9]))
+    # env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
+    
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
     env.mj_model.body_gravcomp[body_id] = 0.0
-    env.step(np.array([0, 0, 0, 0, 0, 0, 3]))
+    env.step(np.array([0, 0, 0.1, 0, 0, 0, 9]))
+
 
 def contact_success(env):
     """Check if the object is in contact with the hand.
@@ -95,7 +98,7 @@ def measure(env):
         # Step 4: 额外计算用于抵抗重力的竖直力
         F_field_world = F_field @ rotation.T @ rotation_hand.T   # 将F矩阵转换到世界坐标系
         Fv = np.sum(F_field_world[:, 2])
-        F_mask = np.linalg.norm(F_field, axis=1) > 0.05
+        F_mask = np.linalg.norm(F_field, axis=1) > 0.1
 
         measurement.append({"P_field": P_field.tolist(), "N_field": N_field.tolist(), "N_field_finger": N_field_finger.tolist(), "Fn_field": Fn_field.tolist(), "Ft_field": Ft_field.tolist(), "Fv": Fv.tolist(), "F_mask": F_mask.tolist(), "rotation_hand": rotation_hand.tolist(), "object_pos": object_pos.tolist()})
 
@@ -106,7 +109,7 @@ def post_grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     for i in range(1):
-        env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
+        env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]), sleep=True)
         # env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
         # env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
         # env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
@@ -125,7 +128,7 @@ def grasp_success(env):
     object_quat1 = env.mj_data.qpos[11:].copy()
     rot = R.from_quat(object_quat1[[1,2,3,0]]) * R.from_quat(object_quat0[[1,2,3,0]]).inv()  # 计算物体的旋转矩阵
     angle_rad = rot.magnitude()  # 旋转弧度
-    success = bool(angle_rad < 1.57)  # threshold need to be modified
+    success = bool(angle_rad < 0.79)  # threshold need to be modified
 
     if not contact_success(env):
         success = False
@@ -155,8 +158,8 @@ def simulate(OBJECT_ID, num_samples=500):
         return
     file_path = f"cad/assets/{OBJECT_ID}/downsampled.ply"  # Replace with your point cloud file path
     point_cloud = o3d.io.read_point_cloud(file_path)
-    centroid = np.mean(np.asarray(point_cloud.points), axis=0)
-    print(f"The initial centroid of the object {OBJECT_ID}: {centroid}")
+    initial_centroid = np.mean(np.asarray(point_cloud.points), axis=0)
+    print(f"The initial centroid of the object {OBJECT_ID}: {initial_centroid}")
 
     for i in range(len(grasp_points)):
         _ = env.reset()
@@ -171,12 +174,12 @@ def simulate(OBJECT_ID, num_samples=500):
             # env.render()
             continue
         measurement = measure(env)
-        
+  
         if measurement[0]["F_mask"].count(True) < 10 or measurement[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
             print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
             continue
 
-        centroid += np.array(measurement[0]["object_pos"])
+        centroid = initial_centroid + np.array(measurement[0]["object_pos"])
         our_metric, Fv = metrics.calculate_our_metric(measurement)
         antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
         closure_metric = metrics.calculate_closure_metric(measurement, centroid)
@@ -184,7 +187,7 @@ def simulate(OBJECT_ID, num_samples=500):
         # post-grasp the object
         grasp_result = grasp_success(env)
         
-        print(f"Grasp {i+1}/{len(grasp_points)}: Contact Success: {contact_result}, Grasp Success: {grasp_result}, Our Metric: {our_metric}, antipodal Metric: {antipodal_metric}, closure_metric, {closure_metric}, Distance: {distance}, Fv: {Fv}")
+        print(f"Grasp {i+1}/{len(grasp_points)}: Contact Success: {contact_result}, Grasp Success: {grasp_result}, Our Metric: {our_metric}, antipodal Metric: {antipodal_metric}, closure_metric: {closure_metric}, Distance: {distance}, Fv: {Fv}")
 
         # save the results
         result = {
@@ -194,10 +197,12 @@ def simulate(OBJECT_ID, num_samples=500):
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-        if contact_result == True and ((grasp_result == True and np.mean(our_metric) > 0.6) or (grasp_result == False and np.mean(our_metric) < 0.4)):  # Filter out the grasps that are not rational
-            our_metric, Fv = metrics.calculate_our_metric(measurement)
-            antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
-            # env.render()
+        # # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Filter out the grasps that are not rational
+        # if (np.mean(closure_metric) < 0.2 and grasp_result == True):
+        #     our_metric, Fv = metrics.calculate_our_metric(measurement)
+        #     antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
+        #     closure_metric = metrics.calculate_closure_metric(measurement, centroid, draw=True)          
+        #     env.render()
 
     
 def preprocess_results(OBJECT_ID):
@@ -205,8 +210,8 @@ def preprocess_results(OBJECT_ID):
     # 读取对应的mesh
     file_path = f"cad/assets/{OBJECT_ID}/downsampled.ply"  # Replace with your point cloud file path
     point_cloud = o3d.io.read_point_cloud(file_path)
-    centroid = np.mean(np.asarray(point_cloud.points), axis=0)
-    print(f"The initial centroid of the object {OBJECT_ID}: {centroid}")
+    initial_centroid = np.mean(np.asarray(point_cloud.points), axis=0)
+    print(f"The initial centroid of the object {OBJECT_ID}: {initial_centroid}")
 
     with open(f"results/{OBJECT_ID}/grasp_results.json", "r", encoding="utf-8") as f:
         print(f"The number of grasps: {len(f.readlines())}")
@@ -217,7 +222,7 @@ def preprocess_results(OBJECT_ID):
             grasp_result = result["grasp_result"]
             measurement = result["measurement"]
             if contact_result == True:
-                centroid += np.array(measurement[0]["object_pos"])  # Update the centroid with the object position
+                centroid = initial_centroid + np.array(measurement[0]["object_pos"])  # Update the centroid with the object position
                 our_metric, Fv = metrics.calculate_our_metric(measurement)
                 antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement, centroid)
                 closure_metric = metrics.calculate_closure_metric(measurement, centroid)
@@ -244,11 +249,11 @@ def preprocess_results(OBJECT_ID):
     
 def combine_results():
     grasp_results_all, our_metrics_all, antipodal_metrics_all, closure_metrics_all, distances_all, Fvs_all  = [], [], [], [], [], []
-    for i in range(89):
-        # if i == 9 or i == 45: 
+    for i in range(0, 20):
+        # if i == 14 or i == 13: 
         #     continue
         OBJECT_ID = f"{i:03d}"
-        print(f"Processing object {OBJECT_ID}...")
+        # print(f"Processing object {OBJECT_ID}...")
         data = np.load((f"results/{OBJECT_ID}/grasp_metrics.npz"))
         grasp_results, our_metrics, antipodal_metrics, closure_metrics, distances, Fvs= data['grasp_results'], data['our_metrics'], data['antipodal_metrics'], data['closure_metrics'], data['distances'], data['Fvs']
         grasp_results_all.extend(grasp_results)
@@ -281,10 +286,10 @@ def validate_result(OBJECT_ID):
     closure_metrics = np.nan_to_num(closure_metrics, nan=10)  # Replace NaN with 100
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
-    # our_metrics = our_metrics * (10*distances + 1e-6)  # Normalize the our metrics by Fv
+    # our_metrics = our_metrics / (Fvs + 1e-6)  # Normalize the our metrics by Fv
     # antipodal_metrics = antipodal_metrics * (10 * distances + 1e-6)  # Normalize the antipodal metrics by distance
 
-    mask = (our_metrics < 0.999) & (closure_metrics > 0) & (closure_metrics < 3.0)# & (distances > 0.03)  # Filter out the metrics that are too large
+    mask = (our_metrics > 0) & (our_metrics < 0.999) & (closure_metrics > 0) & (closure_metrics < 0.999)# & (distances > 0.03)  # Filter out the metrics that are too large
     our_metrics, antipodal_metrics, closure_metrics, grasp_results, distances, Fvs = our_metrics[mask], antipodal_metrics[mask], closure_metrics[mask], grasp_results[mask], distances[mask], Fvs[mask]
     metrics = our_metrics  # Normalize the our metrics by Fv
     
@@ -293,10 +298,10 @@ def validate_result(OBJECT_ID):
     corr, pval = pearsonr(metrics, closure_metrics)
     print(f"our_metric 与 metrics 的皮尔逊相关系数: {corr:.4f}, p值: {pval:.4e}")
 
-    plt.scatter(metrics[grasp_results == True], closure_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue', s=0.1)
-    plt.scatter(metrics[grasp_results == False], closure_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red', s=0.1)
+    plt.scatter(metrics[grasp_results == True], closure_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue', s=1)
+    plt.scatter(metrics[grasp_results == False], closure_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red', s=1)
     plt.xlabel('Our Metric')
-    plt.ylabel('antipodal Metric')
+    plt.ylabel('Closure Metric')
     plt.title('Our Metric vs antipodal Metric')
     plt.legend()
     plt.show()
@@ -342,7 +347,7 @@ def validate_result(OBJECT_ID):
 if __name__ == '__main__':
 
     import shutil
-    base_dir = r"E:\2 - 3_Technical_material\Simulator\ARL_envs\cad\assets"
+    base_dir = r"/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets"
     for i in range(89):
         OBJECT_ID = f"{i:03d}"
         # print(f"Processing object {OBJECT_ID}...")
@@ -354,7 +359,7 @@ if __name__ == '__main__':
             shutil.copyfile(src, dst)
         else:
             print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=50)
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
 
         # Preprocess the results after simulation
         preprocess_results(OBJECT_ID=OBJECT_ID)
