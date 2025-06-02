@@ -5,7 +5,7 @@ import open3d as o3d
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-import function.metrics as metrics
+import wy_grasp.metrics as metrics
 import mujoco    
 from mujoco import viewer
 from dexhand.dexhand import DexHandEnv
