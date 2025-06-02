@@ -62,8 +62,9 @@ class DexHandEnv(gym.Env):
     def step(self, action, sleep=False):
         """
         Take an action by position control in velocity loop, with a PD controller.
-        :param action: 7D vector representing the relative position change or target force.
-                sleep: if True, then the iteration number is fixed to max_iter.
+        :param 
+            action: 7D vector representing the relative position change or target force.
+            sleep: if True, then the iteration number is fixed to max_iter.
         :return: observation, reward, done, info
         """
         target_pos, target_force = self.mj_data.qpos[0:6].copy() + action[0:6], action[6]
