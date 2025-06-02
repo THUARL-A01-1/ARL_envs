@@ -24,14 +24,14 @@ def pre_grasp(env, point, normal, angle, depth):
     rotation = rot.as_euler('XYZ', degrees=False)
     env.mj_data.qpos[0:3] = translation
     env.mj_data.qpos[3:6] = rotation
-    env.step(np.array([0, 0, 0, 0, 0, 0, 9]))
 
 def grasp(env):
     """Grasp the object by applying a force to the hand, and then gravity.
     Args: env (DexHandEnv): The DexHand environment.
     """
     # apply grasping force
-    env.step(np.array([0, 0, 0, 0, 0, 0, 9]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 3]))
+    measurement1 = measure(env)
     # env.step(np.array([0, 0, 0, 0, 0, 0, -9]))
     # env.step(np.array([0, 0, 0, 0, 0, 0, 9]))
     # env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
@@ -39,7 +39,10 @@ def grasp(env):
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
     env.mj_model.body_gravcomp[body_id] = 0.0
-    env.step(np.array([0, 0, 0.1, 0, 0, 0, 9]))
+    env.step(np.array([0, 0, 0.02, 0, 0, 0, 3]), sleep=False)
+    measurement2 = measure(env)
+
+    return measurement1, measurement2
 
 
 def contact_success(env):
@@ -109,7 +112,9 @@ def post_grasp(env):
     Args: env (DexHandEnv): The DexHand environment.
     """
     for i in range(1):
-        env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]), sleep=True)
+        env.step(np.array([0, 0, 0, 0, 0, 0, 1]), sleep=True)
+        # env.step(np.array([0, 0, 0, 0, 0, 0, 3]), sleep=True)
+        # env.step(np.array([0, 0, 0, 0, 0, 0, 3]), sleep=True)
         # env.step(np.array([0, 0, 0.1, 0, 0, 0, 3]))
         # env.step(np.array([0.1, 0, 0, 0, 0, 0, 10]))
         # env.step(np.array([-0.1, 0, 0, 0, 0, 0, 10]))
@@ -167,22 +172,21 @@ def simulate(OBJECT_ID, num_samples=500):
         pre_grasp(env, grasp_points[i], grasp_normals[i], grasp_angles[i], grasp_depths[i])
         
         # grasp the object
-        grasp(env)
+        measurement1, measurement2 = grasp(env)
         contact_result = contact_success(env)
         if contact_result == False:
             print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
             # env.render()
             continue
-        measurement = measure(env)
   
-        if measurement[0]["F_mask"].count(True) < 10 or measurement[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
+        if measurement1[0]["F_mask"].count(True) < 10 or measurement1[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
             print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
             continue
 
-        centroid = initial_centroid + np.array(measurement[0]["object_pos"])
-        our_metric, Fv = metrics.calculate_our_metric(measurement)
-        antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
-        closure_metric = metrics.calculate_closure_metric(measurement, centroid)
+        centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
+        our_metric, Fv = metrics.calculate_our_metric(measurement2)
+        antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement1, centroid)
+        closure_metric = metrics.calculate_closure_metric(measurement1, centroid)
 
         # post-grasp the object
         grasp_result = grasp_success(env)
@@ -193,12 +197,13 @@ def simulate(OBJECT_ID, num_samples=500):
         result = {
             "contact_result": contact_result,
             "grasp_result": grasp_result,
-            "measurement": measurement}
+            "measurement1": measurement1,
+            "measurement2": measurement2}
         with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
         # # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Filter out the grasps that are not rational
-        # if (np.mean(closure_metric) < 0.2 and grasp_result == True):
+        # if (distance < 0.005 and grasp_result == False) or ((distance > 0.015 and grasp_result == True)):
         #     our_metric, Fv = metrics.calculate_our_metric(measurement)
         #     antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
         #     closure_metric = metrics.calculate_closure_metric(measurement, centroid, draw=True)          
@@ -220,12 +225,12 @@ def preprocess_results(OBJECT_ID):
             result = json.loads(line)
             contact_result = result["contact_result"]
             grasp_result = result["grasp_result"]
-            measurement = result["measurement"]
+            measurement1, measurement2 = result["measurement1"], result["measurement2"]
             if contact_result == True:
-                centroid = initial_centroid + np.array(measurement[0]["object_pos"])  # Update the centroid with the object position
-                our_metric, Fv = metrics.calculate_our_metric(measurement)
-                antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement, centroid)
-                closure_metric = metrics.calculate_closure_metric(measurement, centroid)
+                centroid = initial_centroid + np.array(measurement1[0]["object_pos"])  # Update the centroid with the object position
+                our_metric, Fv = metrics.calculate_our_metric(measurement2)
+                antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement1, centroid)
+                closure_metric = metrics.calculate_closure_metric(measurement1, centroid)
                 # if np.sum(antipodal_metric) > 2 and np.mean(our_metric) > 0.8:  # Filter out the grasps that are not rational
                 #     our_metric, Fv = metrics.calculate_our_metric(measurement)
                 #     antipodal_metric, distance = metrics.calculate_closure_metric(measurement, centroid)
@@ -249,9 +254,9 @@ def preprocess_results(OBJECT_ID):
     
 def combine_results():
     grasp_results_all, our_metrics_all, antipodal_metrics_all, closure_metrics_all, distances_all, Fvs_all  = [], [], [], [], [], []
-    for i in range(0, 20):
-        # if i == 14 or i == 13: 
-        #     continue
+    for i in range(89):
+        if i in [ 85]:#[18, 19, 27, 29, 31, 34, 58, 64, 72, 79, 81, 88]: 
+            continue
         OBJECT_ID = f"{i:03d}"
         # print(f"Processing object {OBJECT_ID}...")
         data = np.load((f"results/{OBJECT_ID}/grasp_metrics.npz"))
@@ -279,19 +284,23 @@ def validate_result(OBJECT_ID):
     grasp_results, our_metrics, antipodal_metrics, distances, Fvs = data['grasp_results'], data['our_metrics'], data['antipodal_metrics'], data['distances'], data['Fvs']
     grasp_results = data['grasp_results']
     our_metrics = np.mean(data['our_metrics'], axis=1)  # Combine the metrics from both fingers
-    our_metrics = np.nan_to_num(our_metrics, nan=10)  # Replace NaN with 100
+    our_metrics = np.nan_to_num(our_metrics, nan=1)  # Replace NaN with 100
     antipodal_metrics = np.sum(data['antipodal_metrics'], axis=1)  # Combine the metrics from both fingers
-    antipodal_metrics = np.nan_to_num(antipodal_metrics, nan=10)  # Replace NaN with 100
+    antipodal_metrics = np.nan_to_num(antipodal_metrics, nan=1)  # Replace NaN with 100
     closure_metrics = data['closure_metrics']  # Combine the metrics from both fingers
-    closure_metrics = np.nan_to_num(closure_metrics, nan=10)  # Replace NaN with 100
+    closure_metrics = np.nan_to_num(closure_metrics, nan=1)  # Replace NaN with 100
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
     # our_metrics = our_metrics / (Fvs + 1e-6)  # Normalize the our metrics by Fv
     # antipodal_metrics = antipodal_metrics * (10 * distances + 1e-6)  # Normalize the antipodal metrics by distance
 
-    mask = (our_metrics > 0) & (our_metrics < 0.999) & (closure_metrics > 0) & (closure_metrics < 0.999)# & (distances > 0.03)  # Filter out the metrics that are too large
+    mask = (our_metrics > 0) & (our_metrics < 0.999) & (closure_metrics > 0) & (closure_metrics < 0.999) & (distances > 0)# & (distances < 0.005)  # Filter out the metrics that are too large
     our_metrics, antipodal_metrics, closure_metrics, grasp_results, distances, Fvs = our_metrics[mask], antipodal_metrics[mask], closure_metrics[mask], grasp_results[mask], distances[mask], Fvs[mask]
     metrics = our_metrics  # Normalize the our metrics by Fv
+    print(f"Number of masked grasps: {np.sum(mask)}")
+    if np.sum(mask) < 2:
+        print("Masked grasps is not enough.")
+        return
     
     # 绘制散点图，横轴为our_metric，纵轴为antipodal_metric
     from scipy.stats import pearsonr
@@ -348,25 +357,25 @@ if __name__ == '__main__':
 
     import shutil
     base_dir = r"/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets"
-    for i in range(89):
+    for i in range(34, 38):
         OBJECT_ID = f"{i:03d}"
-        # print(f"Processing object {OBJECT_ID}...")
+        print(f"Processing object {OBJECT_ID}...")
 
-        # Simulate the grasping process
-        src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
-        dst = os.path.join(base_dir, "downsampled_mesh.obj")
-        if os.path.exists(src):
-            shutil.copyfile(src, dst)
-        else:
-            print(f"Source not found: {src}")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
+    #     # Simulate the grasping process
+    #     src = os.path.join(base_dir, OBJECT_ID, "downsampled_mesh.obj")
+    #     dst = os.path.join(base_dir, "downsampled_mesh.obj")
+    #     if os.path.exists(src):
+    #         shutil.copyfile(src, dst)
+    #     else:
+    #         print(f"Source not found: {src}")
+    #     simulate(OBJECT_ID=OBJECT_ID, num_samples=300)
 
-        # Preprocess the results after simulation
-        preprocess_results(OBJECT_ID=OBJECT_ID)
+        # # Preprocess the results after simulation
+        # preprocess_results(OBJECT_ID=OBJECT_ID)
 
         # # Validate the results
         # validate_result(OBJECT_ID=OBJECT_ID)
         
     
-    # combine_results()
-    # validate_result(OBJECT_ID="all") 
+    combine_results()
+    validate_result(OBJECT_ID="all") 

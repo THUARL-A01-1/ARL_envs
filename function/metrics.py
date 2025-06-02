@@ -144,7 +144,6 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), draw=Fal
         print("优化失败")
     
     if draw == True:
-        print(f"f: {friction_cones_total[a_opt > 0.001]} {a_opt[a_opt > 0.001]}")
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
 
