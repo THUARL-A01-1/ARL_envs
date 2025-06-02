@@ -73,7 +73,7 @@ def measure(env):
         # Step 4: 额外计算用于抵抗重力的竖直力
         F_field_world = F_field @ rotation.T @ rotation_hand.T   # 将F矩阵转换到世界坐标系
         Fv = np.sum(F_field_world[:, 2])
-        F_mask = np.linalg.norm(F_field, axis=1) > 0.1
+        F_mask = np.linalg.norm(Fn_field, axis=1) > 0.1
 
         measurement.append({"P_field": P_field.tolist(), "N_field": N_field.tolist(), "N_field_finger": N_field_finger.tolist(), "Fn_field": Fn_field.tolist(), "Ft_field": Ft_field.tolist(), "Fv": Fv.tolist(), "F_mask": F_mask.tolist(), "rotation_hand": rotation_hand.tolist(), "object_pos": object_pos.tolist()})
 

@@ -5,7 +5,7 @@ import os
 
 ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
 
-def analyze_results(OBJECT_ID):
+def load_results(OBJECT_ID):
     """
     Analyze the grasp results for a given object ID by loading the metrics and plotting the results.
     Args:
@@ -26,24 +26,23 @@ def analyze_results(OBJECT_ID):
     closure_metrics = np.nan_to_num(closure_metrics, nan=1)  # Replace NaN with 100
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
-    # our_metrics = our_metrics / (Fvs + 1e-6)  # Normalize the our metrics by Fv
-    # antipodal_metrics = antipodal_metrics * (10 * distances + 1e-6)  # Normalize the antipodal metrics by distance
+    # our_metrics = our_metrics / (np.power(Fvs, 0.15) + 1e-6)  # Normalize the our metrics by Fv
+    # antipodal_metrics = antipodal_metrics * (10 * np.power(distances, 0.15) + 1e-6)  # Normalize the antipodal metrics by distance
 
     mask = (our_metrics > 0) & (our_metrics < 0.999) & (closure_metrics > 0) & (closure_metrics < 0.999) & (distances > 0)# & (distances < 0.005)  # Filter out the metrics that are too large
     our_metrics, antipodal_metrics, closure_metrics, grasp_results, distances, Fvs = our_metrics[mask], antipodal_metrics[mask], closure_metrics[mask], grasp_results[mask], distances[mask], Fvs[mask]
-    metrics = our_metrics  # Normalize the our metrics by Fv
+
     print(f"Number of masked grasps: {np.sum(mask)}")
     if np.sum(mask) < 2:
         print("Masked grasps is not enough.")
         return
     
+    return grasp_results, our_metrics, closure_metrics, antipodal_metrics, distances, Fvs
+    
+def draw_histogram(grasp_results, metrics, closure_metrics):
     # 绘制散点图，横轴为our_metric，纵轴为antipodal_metric
-    from scipy.stats import pearsonr
-    corr, pval = pearsonr(metrics, closure_metrics)
-    print(f"our_metric 与 metrics 的皮尔逊相关系数: {corr:.4f}, p值: {pval:.4e}")
-
-    plt.scatter(metrics[grasp_results == True], closure_metrics[grasp_results == True], alpha=0.7, label='Grasp Success', color='blue', s=1)
-    plt.scatter(metrics[grasp_results == False], closure_metrics[grasp_results == False], alpha=0.7, label='Grasp Failure', color='red', s=1)
+    plt.scatter(metrics[grasp_results == True], closure_metrics[grasp_results == True], alpha=0.7, label=f"Grasp Success: {np.sum(grasp_results == True)}", color='blue', s=1)
+    plt.scatter(metrics[grasp_results == False], closure_metrics[grasp_results == False], alpha=0.7, label=f"Grasp Failure: {np.sum(grasp_results == False)}", color='red', s=1)
     plt.xlabel('Our Metric')
     plt.ylabel('Closure Metric')
     plt.title('Our Metric vs antipodal Metric')
@@ -51,8 +50,8 @@ def analyze_results(OBJECT_ID):
     plt.show()
 
     # 绘制两个直方图，分别是grasp成功和失败的our_metric分布
-    plt.hist(metrics[grasp_results == True], bins=100, alpha=0.5, label='Grasp Success', color='blue', density=False, orientation='vertical')
-    plt.hist(metrics[grasp_results == False], bins=100, alpha=0.5, label='Grasp Failure', color='red', density=False, orientation='vertical')
+    plt.hist(metrics[grasp_results == True], bins=100, alpha=0.5, label='Grasp Success', color='blue', density=True, orientation='vertical')
+    plt.hist(metrics[grasp_results == False], bins=100, alpha=0.5, label='Grasp Failure', color='red', density=True, orientation='vertical')
     plt.xlabel('Our Metric')
     plt.ylabel('Density')
     plt.legend()
@@ -61,28 +60,84 @@ def analyze_results(OBJECT_ID):
     # plt.gca().xaxis.set_label_position("top")
     plt.show()
 
+def analyze_classification(grasp_results, metrics):
     # 计算AUROC
     from sklearn.metrics import roc_auc_score
     auroc = roc_auc_score(grasp_results, -metrics)
     print(f"1. AUROC: {auroc:.4f}")
-    # # 假设检验
-    # from scipy.stats import ks_2samp
-    # stat, p_value = ks_2samp(metrics[grasp_results == True], metrics[grasp_results == False])
-    # print(f"2. KS检验统计量: {stat}, p值: {p_value}")
-    # from scipy.stats import wasserstein_distance
-    # d = wasserstein_distance(metrics[grasp_results == True], metrics[grasp_results == False])
-    # print(f"3. Wasserstein 距离: {d}")
-    # from scipy.stats import mannwhitneyu
-    # stat, p = mannwhitneyu(metrics[grasp_results == True], metrics[grasp_results == False], alternative='two-sided')
-    # print(f"4. Mann-Whitney U 检验统计量: {stat}, p值: {p}")
-    # cohen_d = (np.mean(metrics[grasp_results == True]) - np.mean(metrics[grasp_results == False])) / np.sqrt((np.std(metrics[grasp_results == True], ddof=1) ** 2 + np.std(metrics[grasp_results == False], ddof=1) ** 2) / 2)
-    # print(f"5. Cohen's d: {cohen_d}")
-    # from scipy.spatial.distance import jensenshannon
-    # # 先对数据做直方图归一化
-    # hist1, bins = np.histogram(metrics[grasp_results == True], bins=100, density=True)
-    # hist2, _ = np.histogram(metrics[grasp_results == False], bins=bins, density=True)
-    # jsd = jensenshannon(hist1, hist2)
-    # print(f"6. Jensen-Shannon 距离: {jsd}")
-    # from scipy.stats import ttest_ind
-    # stat, p = ttest_ind(metrics[grasp_results == True], metrics[grasp_results == False])
-    # print(f"7. t检验统计量: {stat}, p值: {p}")
+    # 假设检验
+    from scipy.stats import ks_2samp
+    stat, p_value = ks_2samp(metrics[grasp_results == True], metrics[grasp_results == False])
+    print(f"2. KS检验统计量: {stat}, p值: {p_value}")
+    from scipy.stats import wasserstein_distance
+    d = wasserstein_distance(metrics[grasp_results == True], metrics[grasp_results == False])
+    print(f"3. Wasserstein 距离: {d}")
+    from scipy.stats import mannwhitneyu
+    stat, p = mannwhitneyu(metrics[grasp_results == True], metrics[grasp_results == False], alternative='two-sided')
+    print(f"4. Mann-Whitney U 检验统计量: {stat}, p值: {p}")
+    cohen_d = (np.mean(metrics[grasp_results == True]) - np.mean(metrics[grasp_results == False])) / np.sqrt((np.std(metrics[grasp_results == True], ddof=1) ** 2 + np.std(metrics[grasp_results == False], ddof=1) ** 2) / 2)
+    print(f"5. Cohen's d: {cohen_d}")
+    from scipy.spatial.distance import jensenshannon
+    # 先对数据做直方图归一化
+    hist1, bins = np.histogram(metrics[grasp_results == True], bins=100, density=True)
+    hist2, _ = np.histogram(metrics[grasp_results == False], bins=bins, density=True)
+    jsd = jensenshannon(hist1, hist2)
+    print(f"6. Jensen-Shannon 距离: {jsd}")
+    from scipy.stats import ttest_ind
+    stat, p = ttest_ind(metrics[grasp_results == True], metrics[grasp_results == False])
+    print(f"7. t检验统计量: {stat}, p值: {p}")
+
+def analyze_correlation(grasp_results, metrics, closure_metrics):
+    # 计算相关系数
+    from scipy.stats import pearsonr
+    corr, pval = pearsonr(metrics, closure_metrics)
+    print(f"1. Our Metric 与 Closure Metric 的皮尔逊相关系数: {corr:.4f}, p值: {pval:.4e}")
+    
+    from scipy.stats import spearmanr
+    corr, pval = spearmanr(metrics, closure_metrics)
+    print(f"2. Our Metric 与 Closure Metric 的斯皮尔曼相关系数: {corr:.4f}, p值: {pval:.4e}")
+    
+    from scipy.stats import kendalltau
+    corr, pval = kendalltau(metrics, closure_metrics)
+    print(f"3. Our Metric 与 Closure Metric 的肯德尔相关系数: {corr:.4f}, p值: {pval:.4e}")
+
+    # 将metrics取值0-1分为51个区间，每个区间计算closure_metrics的平均值和标准差
+    means, stds = [], []
+    bins = np.linspace(0, 1, 51)
+    for i in range(len(bins) - 1):
+        mask = (metrics >= bins[i]) & (metrics < bins[i + 1])
+        if np.sum(mask) > 0:
+            means.append(np.mean(closure_metrics[mask]))
+            stds.append(np.std(closure_metrics[mask]))
+        else:
+            means.append(np.nan)
+            stds.append(np.nan)
+    means, stds = np.array(means), np.array(stds)
+    plt.errorbar(bins[:-1] + 0.005, means, yerr=stds, fmt='o', color="b", capsize=2, label='Closure Metric Mean ± Std')
+    plt.xlabel('1-Our Metric')
+    plt.ylabel('Closure Metric Mean ± Std')
+    plt.title('Closure Metric Mean ± Std vs Our Metric')
+    plt.legend()
+    plt.show()
+
+def analyze_results(OBJECT_ID="all"):
+    """
+    Analyze the grasp results for a given object ID.
+    Args:
+        OBJECT_ID (str): The ID of the object to analyze. If "all", analyze all objects.
+    """
+    # load grasp results
+    grasp_results, our_metrics, closure_metrics, antipodal_metrics, distances, Fvs = load_results(OBJECT_ID)
+    
+    # Draw histogram
+    draw_histogram(grasp_results, our_metrics, closure_metrics)
+    
+    # Analyze classification
+    # analyze_classification(grasp_results, our_metrics)
+    
+    # Analyze correlation
+    analyze_correlation(grasp_results, our_metrics, closure_metrics)
+
+
+if __name__ == "__main__":
+    analyze_results(OBJECT_ID="all")

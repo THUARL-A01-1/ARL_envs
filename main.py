@@ -13,11 +13,8 @@ from wy_grasp.analysis import analyze_results
 ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
 
 if __name__ == "__main__":
-    # # 获得ROOT_DIR/results/下所有的object_id
-    # if not os.path.exists(os.path.join(ROOT_DIR, "results")):
-    #     print("No results found. Please run the simulation first.")
-    # OBJECT_IDS = [d for d in os.listdir(os.path.join(ROOT_DIR, "results")) if os.path.isdir(os.path.join(ROOT_DIR, "results", d)) and d.isdigit()]
-    OBJECT_IDS = [000]
+    OBJECT_IDS = range(89)
+    # OBJECT_IDS = [000]
     
     # # Collect data for all objects in the dataset
     # for i in OBJECT_IDS:
@@ -25,15 +22,15 @@ if __name__ == "__main__":
     #     print(f"Simulating object {OBJECT_ID}...")
     #     simulate(OBJECT_ID=OBJECT_ID, num_samples=30)
 
-    # # Collect data for all objects in the dataset
-    # for i in OBJECT_IDS:
-    #     OBJECT_ID = f"{i:03d}"
-    #     print(f"Prepocessing object {OBJECT_ID}...")
-    #     preprocess_results(OBJECT_ID=OBJECT_ID)
+    # Collect data for all objects in the dataset
+    for i in OBJECT_IDS:
+        OBJECT_ID = f"{i:03d}"
+        print(f"Prepocessing object {OBJECT_ID}...")
+        preprocess_results(OBJECT_ID=OBJECT_ID)
     
-    # # Combine results from all objects into a single file
-    # print("Combining results...")
-    # combine_results(OBJECT_IDS)
+    # Combine results from all objects into a single file
+    print("Combining results...")
+    combine_results(OBJECT_IDS)
 
     # Analyze the results for a specific object
     print("Analyzing results...")
