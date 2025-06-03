@@ -1,5 +1,6 @@
 import json
 import numpy as np
+np.random.seed(42)  # Set a seed for reproducibility
 import open3d as o3d
 import os
 import shutil
@@ -58,6 +59,10 @@ def simulate(OBJECT_ID, num_samples=500):
     # Step 3: for each grasp, reset the environment, pre-grasp the object, grasp the object, and post-grasp the object
     for i in range(len(grasp_points)):
         _ = env.reset()
+        # randomize the friction coefficient
+        friction = np.random.uniform(0.5, 1.5)
+        env.mj_model.geom_friction[:] = [friction, 0.005, 0.0001]
+
         # pre-grasp the object
         pre_grasp(env, grasp_points[i], grasp_normals[i], grasp_angles[i], grasp_depths[i])
         
@@ -81,10 +86,13 @@ def simulate(OBJECT_ID, num_samples=500):
         # post-grasp the object
         grasp_result = grasp_success(env)
         
-        print(f"Grasp {i+1}/{len(grasp_points)}: Contact Success: {contact_result}, Grasp Success: {grasp_result} \n Our Metric: {np.mean(our_metric):.2f}, antipodal Metric: {np.sum(antipodal_metric):.2f}, closure_metric: {closure_metric:.2f}, Distance: {distance:.2f}, Fv: {np.sum(Fv):.2f}")
+        print(f"Grasp {i+1}/{len(grasp_points)}: Friction: {friction:.2f}, Contact Success: {contact_result}, Grasp Success: {grasp_result} \n Our Metric: {np.mean(our_metric):.2f}, antipodal Metric: {np.sum(antipodal_metric):.2f}, closure_metric: {closure_metric:.2f}, Distance: {distance:.2f}, Fv: {np.sum(Fv):.2f}")
 
         # save the results
         result = {
+            "object_id": OBJECT_ID,
+            "grasp_index": i,
+            "friction": friction,
             "contact_result": contact_result,
             "grasp_result": grasp_result,
             "measurement1": measurement1,

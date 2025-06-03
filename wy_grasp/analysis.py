@@ -114,9 +114,9 @@ def analyze_correlation(grasp_results, metrics, closure_metrics):
             stds.append(np.nan)
     means, stds = np.array(means), np.array(stds)
     plt.errorbar(bins[:-1] + 0.005, means, yerr=stds, fmt='o', color="b", capsize=2, label='Closure Metric Mean ± Std')
-    plt.xlabel('1-Our Metric')
-    plt.ylabel('Closure Metric Mean ± Std')
-    plt.title('Closure Metric Mean ± Std vs Our Metric')
+    plt.xlabel('Our Metric')
+    plt.ylabel('Distance Mean ± Std')
+    plt.title('Distance Mean ± Std vs Our Metric')
     plt.legend()
     plt.show()
 
@@ -130,13 +130,13 @@ def analyze_results(OBJECT_ID="all"):
     grasp_results, our_metrics, closure_metrics, antipodal_metrics, distances, Fvs = load_results(OBJECT_ID)
     
     # Draw histogram
-    draw_histogram(grasp_results, our_metrics, closure_metrics)
+    # draw_histogram(grasp_results, our_metrics, closure_metrics)
     
     # Analyze classification
-    # analyze_classification(grasp_results, our_metrics)
+    # analyze_classification(grasp_results, distances)
     
     # Analyze correlation
-    analyze_correlation(grasp_results, our_metrics, closure_metrics)
+    analyze_correlation(grasp_results, our_metrics, distances)
 
 
 if __name__ == "__main__":
