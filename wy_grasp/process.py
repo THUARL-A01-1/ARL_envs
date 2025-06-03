@@ -25,6 +25,7 @@ def preprocess_results(OBJECT_ID):
         f.seek(0)
         for line in f:
             result = json.loads(line)
+            fricion_coef = result["friction_coef"]
             contact_result = result["contact_result"]
             grasp_result = result["grasp_result"]
             measurement1, measurement2 = result["measurement1"], result["measurement2"]
@@ -32,13 +33,14 @@ def preprocess_results(OBJECT_ID):
                 centroid = initial_centroid + np.array(measurement1[0]["object_pos"])  # Update the centroid with the object position
                 our_metric, Fv = metrics.calculate_our_metric(measurement2)
                 antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement1, centroid)
-                closure_metric = metrics.calculate_closure_metric(measurement1, centroid)
+                closure_metric = metrics.calculate_closure_metric(measurement1, centroid, fricion_coef)
 
                 metrics_list.append({
                     "grasp_result": grasp_result,
                     "our_metric": our_metric,
                     "antipodal_metric": antipodal_metric,
                     "closure_metric": closure_metric,
+                    "friction_coef": fricion_coef,
                     "distance": distance,
                     "Fv": Fv
                 })
@@ -48,6 +50,7 @@ def preprocess_results(OBJECT_ID):
              our_metrics=[result["our_metric"] for result in metrics_list],
              antipodal_metrics=[result["antipodal_metric"] for result in metrics_list],
              closure_metrics=[result["closure_metric"] for result in metrics_list],
+             friction_coefs=[result["friction_coef"] for result in metrics_list],
              distances=[result["distance"] for result in metrics_list],
              Fvs=[result["Fv"] for result in metrics_list])
     
@@ -56,7 +59,7 @@ def combine_results(OBJECT_IDS):
     Combine the grasp results from all objects into a single file.
     This function reads the results from individual object files, aggregates them, and saves them into a single file.
     """
-    grasp_results_all, our_metrics_all, antipodal_metrics_all, closure_metrics_all, distances_all, Fvs_all  = [], [], [], [], [], []
+    grasp_results_all, our_metrics_all, antipodal_metrics_all, closure_metrics_all, friction_coefs_all, distances_all, Fvs_all  = [], [], [], [], [], [], []
 
     for i in OBJECT_IDS:
         # if i in [85]:#[18, 19, 27, 29, 31, 34, 58, 64, 72, 79, 81, 88]: 
@@ -64,11 +67,12 @@ def combine_results(OBJECT_IDS):
         OBJECT_ID = f"{i:03d}"
         # print(f"Processing object {OBJECT_ID}...")
         data = np.load(os.path.join(ROOT_DIR, f"results/{OBJECT_ID}/grasp_metrics.npz"))
-        grasp_results, our_metrics, antipodal_metrics, closure_metrics, distances, Fvs= data['grasp_results'], data['our_metrics'], data['antipodal_metrics'], data['closure_metrics'], data['distances'], data['Fvs']
+        grasp_results, our_metrics, antipodal_metrics, closure_metrics, friction_coefs, distances, Fvs= data['grasp_results'], data['our_metrics'], data['antipodal_metrics'], data['closure_metrics'], data['friction_coefs'], data['distances'], data['Fvs']
         grasp_results_all.extend(grasp_results)
         our_metrics_all.extend(our_metrics)
         antipodal_metrics_all.extend(antipodal_metrics)
         closure_metrics_all.extend(closure_metrics)
+        friction_coefs_all.extend(friction_coefs)
         distances_all.extend(distances)
         Fvs_all.extend(np.abs(Fvs))  # Use absolute value of Fv
     # save the results to a npz file
@@ -79,5 +83,6 @@ def combine_results(OBJECT_IDS):
              our_metrics=our_metrics_all,
              antipodal_metrics=antipodal_metrics_all,
              closure_metrics=closure_metrics_all,
+             friction_coefs=friction_coefs_all,
              distances=distances_all,
              Fvs=Fvs_all)

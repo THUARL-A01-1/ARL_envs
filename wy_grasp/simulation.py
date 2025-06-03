@@ -60,8 +60,8 @@ def simulate(OBJECT_ID, num_samples=500):
     for i in range(len(grasp_points)):
         _ = env.reset()
         # randomize the friction coefficient
-        friction = np.random.uniform(0.5, 1.5)
-        env.mj_model.geom_friction[:] = [friction, 0.005, 0.0001]
+        friction_coef = np.random.uniform(0.5, 1.5)
+        env.mj_model.geom_friction[:] = [friction_coef, 0.005, 0.0001]
 
         # pre-grasp the object
         pre_grasp(env, grasp_points[i], grasp_normals[i], grasp_angles[i], grasp_depths[i])
@@ -81,18 +81,18 @@ def simulate(OBJECT_ID, num_samples=500):
         centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
         our_metric, Fv = calculate_our_metric(measurement2)
         antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
-        closure_metric = calculate_closure_metric(measurement1, centroid)
+        closure_metric = calculate_closure_metric(measurement1, centroid, friction_coef)
 
         # post-grasp the object
         grasp_result = grasp_success(env)
         
-        print(f"Grasp {i+1}/{len(grasp_points)}: Friction: {friction:.2f}, Contact Success: {contact_result}, Grasp Success: {grasp_result} \n Our Metric: {np.mean(our_metric):.2f}, antipodal Metric: {np.sum(antipodal_metric):.2f}, closure_metric: {closure_metric:.2f}, Distance: {distance:.2f}, Fv: {np.sum(Fv):.2f}")
+        print(f"Grasp {i+1}/{len(grasp_points)}: Friction_coef: {friction_coef:.2f}, Contact Success: {contact_result}, Grasp Success: {grasp_result} \n Our Metric: {np.mean(our_metric):.2f}, antipodal Metric: {np.sum(antipodal_metric):.2f}, closure_metric: {closure_metric:.2f}, Distance: {distance:.2f}, Fv: {np.sum(Fv):.2f}")
 
         # save the results
         result = {
             "object_id": OBJECT_ID,
             "grasp_index": i,
-            "friction": friction,
+            "friction_coef": friction_coef,
             "contact_result": contact_result,
             "grasp_result": grasp_result,
             "measurement1": measurement1,
@@ -104,5 +104,5 @@ def simulate(OBJECT_ID, num_samples=500):
         # if (distance < 0.005 and grasp_result == False) or ((distance > 0.015 and grasp_result == True)):
         #     our_metric, Fv = metrics.calculate_our_metric(measurement)
         #     antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
-        #     closure_metric = metrics.calculate_closure_metric(measurement, centroid, draw=True)          
+        #     closure_metric = metrics.calculate_closure_metric(measurement, centroid, friction, draw=True)          
         #     env.render()

@@ -28,7 +28,7 @@ def calculate_friction_cone(N_vec, friction_coef=1, num_samples=8):
     return friction_cone
 
 
-def calculate_G_matrix(P_field, N_field, centroid):
+def calculate_G_matrix(P_field, N_field, centroid, friction_coef=1):
     """
     Calculate the G matrix of a single finger: w = G @ a
     Note: w (6, 1) is the wrench to the object center, a(N * 8, 1) is a series of vectors representing the friction cone of every contact point.
@@ -46,7 +46,7 @@ def calculate_G_matrix(P_field, N_field, centroid):
     for i in range(num_points):
         P_vec = P_field[i] - centroid
         N_vec = N_field[i]
-        friction_cone = calculate_friction_cone(N_vec, friction_coef=1, num_samples=8)  # (8, 3)
+        friction_cone = calculate_friction_cone(N_vec, friction_coef=friction_coef, num_samples=8)  # (8, 3)
         W = np.array([[1, 0, 0, 0, P_vec[2], -P_vec[1]],
                       [0, 1, 0, -P_vec[2], 0, P_vec[0]],
                       [0, 0, 1, P_vec[1], -P_vec[0], 0]])  # (3, 6): The transition from contact force to the object wrench
@@ -56,12 +56,14 @@ def calculate_G_matrix(P_field, N_field, centroid):
     return G.copy(), friction_cones.copy()
 
 
-def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), draw=False):
+def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), friction=1, draw=False):
     """
     Calculate the closure metric of a grasp based on the contact points and their normals.
     Args:
         measurement (list): A list of dictionaries, each containing the contact points and normals for each finger.
         centroid (np.ndarray): The centroid of the object.
+        friction (float): The friction coefficient for the contact points.
+        draw (bool): Whether to draw the 3D plot of the contact points and normals for debugging.
     Returns:
         tuple: A tuple containing the closure metric and the distance from the centroid to the mean contact point.
     Note: The closure metric is calculated by the following optimization problem:
@@ -76,8 +78,8 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), draw=Fal
         P_field, N_field, N_field_finger = np.array(measurement[i]["P_field"])[F_mask], np.array(measurement[i]["N_field"])[F_mask], np.array(measurement[i]["N_field_finger"])[F_mask]
         P_field_total.append(P_field)  # (N, 3): The position field of all contact points
         N_field_total.append(N_field)
-        G, friction_cones = calculate_G_matrix(P_field, N_field, centroid)
-        G_finger, _ = calculate_G_matrix(P_field, N_field_finger, centroid)
+        G, friction_cones = calculate_G_matrix(P_field, N_field, centroid, friction)
+        G_finger, _ = calculate_G_matrix(P_field, N_field_finger, centroid, friction)
         friction_cones_total.append(friction_cones)  # (N * 8, 3): The friction cone vectors for all contact points
         G_total.append(G)
         G_finger_total.append(G_finger)
