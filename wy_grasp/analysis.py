@@ -24,20 +24,21 @@ def load_results(OBJECT_ID):
     antipodal_metrics = np.nan_to_num(antipodal_metrics, nan=1)  # Replace NaN with 100
     closure_metrics = data['closure_metrics']  # Combine the metrics from both fingers
     closure_metrics = np.nan_to_num(closure_metrics, nan=1)  # Replace NaN with 100
+    friction_coefs = data['friction_coefs']
     distances = data['distances']
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
     # our_metrics = our_metrics / (np.power(Fvs, 0.15) + 1e-6)  # Normalize the our metrics by Fv
     # antipodal_metrics = antipodal_metrics * (10 * np.power(distances, 0.15) + 1e-6)  # Normalize the antipodal metrics by distance
 
     mask = (our_metrics > 0) & (our_metrics < 0.999) & (closure_metrics > 0) & (closure_metrics < 0.999) & (distances > 0)# & (distances < 0.005)  # Filter out the metrics that are too large
-    our_metrics, antipodal_metrics, closure_metrics, grasp_results, distances, Fvs = our_metrics[mask], antipodal_metrics[mask], closure_metrics[mask], grasp_results[mask], distances[mask], Fvs[mask]
+    our_metrics, antipodal_metrics, closure_metrics, grasp_results, friction_coefs, distances, Fvs = our_metrics[mask], antipodal_metrics[mask], closure_metrics[mask], grasp_results[mask], friction_coefs[mask], distances[mask], Fvs[mask]
 
     print(f"Number of masked grasps: {np.sum(mask)}")
     if np.sum(mask) < 2:
         print("Masked grasps is not enough.")
         return
     
-    return grasp_results, our_metrics, closure_metrics, antipodal_metrics, distances, Fvs
+    return grasp_results, our_metrics, closure_metrics, antipodal_metrics, friction_coefs, distances, Fvs
     
 def draw_histogram(grasp_results, metrics, closure_metrics):
     # 绘制散点图，横轴为our_metric，纵轴为antipodal_metric
@@ -127,7 +128,7 @@ def analyze_results(OBJECT_ID="all"):
         OBJECT_ID (str): The ID of the object to analyze. If "all", analyze all objects.
     """
     # load grasp results
-    grasp_results, our_metrics, closure_metrics, antipodal_metrics, distances, Fvs = load_results(OBJECT_ID)
+    grasp_results, our_metrics, closure_metrics, antipodal_metrics, friction_coefs, distances, Fvs = load_results(OBJECT_ID)
     
     # Draw histogram
     # draw_histogram(grasp_results, our_metrics, closure_metrics)
@@ -136,7 +137,7 @@ def analyze_results(OBJECT_ID="all"):
     # analyze_classification(grasp_results, distances)
     
     # Analyze correlation
-    analyze_correlation(grasp_results, our_metrics, distances)
+    analyze_correlation(grasp_results, our_metrics, antipodal_metrics)
 
 
 if __name__ == "__main__":
