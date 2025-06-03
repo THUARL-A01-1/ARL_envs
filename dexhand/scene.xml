@@ -4,7 +4,8 @@
     <include file="dexhand/dexhand.xml"/>
     <!-- your obj file here -->
     <asset>
-        <mesh file="E:\2 - 3_Technical_material\Simulator\ARL_envs\cad\assets\downsampled_mesh.obj" name="object"/>
+        <!-- <mesh file="E:\2 - 3_Technical_material\Simulator\ARL_envs\cad\assets\downsampled_mesh.obj" name="object"/> -->
+        <mesh file="/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets/downsampled_mesh.obj" name="object"/>
     </asset>
     <!-- The object -->
     <worldbody>

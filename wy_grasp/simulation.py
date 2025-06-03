@@ -13,7 +13,8 @@ from wy_grasp.labels import contact_success, grasp_success
 from wy_grasp.metrics import calculate_our_metric, calculate_antipodal_metric, calculate_closure_metric
 
 
-ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 def simulate(OBJECT_ID, num_samples=500):
     """
@@ -58,51 +59,53 @@ def simulate(OBJECT_ID, num_samples=500):
 
     # Step 3: for each grasp, reset the environment, pre-grasp the object, grasp the object, and post-grasp the object
     for i in range(len(grasp_points)):
-        _ = env.reset()
-        # randomize the friction coefficient
-        friction_coef = np.random.uniform(0.5, 1.5)
-        env.mj_model.geom_friction[:] = [friction_coef, 0.005, 0.0001]
-
-        # pre-grasp the object
-        pre_grasp(env, grasp_points[i], grasp_normals[i], grasp_angles[i], grasp_depths[i])
         
-        # grasp the object
-        measurement1, measurement2 = grasp(env)
-        contact_result = contact_success(env)
-        if contact_result == False:
-            print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
-            # env.render()
-            continue
-  
-        if measurement1[0]["F_mask"].count(True) < 10 or measurement1[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
-            print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
-            continue
+        for friction_coef in [0.5, 0.75, 1.0, 1.25, 1.5]:
+        # # randomize the friction coefficient
+        # friction_coef = np.random.uniform(0.5, 1.5)
+            _ = env.reset()
+            env.mj_model.geom_friction[:] = [friction_coef, 0.005, 0.0001].copy()
 
-        centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
-        our_metric, Fv = calculate_our_metric(measurement2)
-        antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
-        closure_metric = calculate_closure_metric(measurement1, centroid, friction_coef)
+            # pre-grasp the object
+            pre_grasp(env, grasp_points[i], grasp_normals[i], grasp_angles[i], grasp_depths[i])
+            
+            # grasp the object
+            measurement1, measurement2 = grasp(env)
+            contact_result = contact_success(env)
+            if contact_result == False:
+                print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
+                # env.render()
+                continue
+    
+            if measurement1[0]["F_mask"].count(True) < 10 or measurement1[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
+                print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
+                continue
 
-        # post-grasp the object
-        grasp_result = grasp_success(env)
-        
-        print(f"Grasp {i+1}/{len(grasp_points)}: Friction_coef: {friction_coef:.2f}, Contact Success: {contact_result}, Grasp Success: {grasp_result} \n Our Metric: {np.mean(our_metric):.2f}, antipodal Metric: {np.sum(antipodal_metric):.2f}, closure_metric: {closure_metric:.2f}, Distance: {distance:.2f}, Fv: {np.sum(Fv):.2f}")
+            centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
+            our_metric, Fv = calculate_our_metric(measurement2)
+            antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
+            closure_metric = calculate_closure_metric(measurement1, centroid, friction_coef)
 
-        # save the results
-        result = {
-            "object_id": OBJECT_ID,
-            "grasp_index": i,
-            "friction_coef": friction_coef,
-            "contact_result": contact_result,
-            "grasp_result": grasp_result,
-            "measurement1": measurement1,
-            "measurement2": measurement2}
-        with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
-            f.write(json.dumps(result, ensure_ascii=False) + "\n")
+            # post-grasp the object
+            grasp_result = grasp_success(env)
+            
+            print(f"Grasp {i+1}/{len(grasp_points)}: Friction_coef: {friction_coef:.2f}, Contact Success: {contact_result}, Grasp Success: {grasp_result} \n Our Metric: {np.mean(our_metric):.2f}, antipodal Metric: {np.sum(antipodal_metric):.2f}, closure_metric: {closure_metric:.2f}, Distance: {distance:.2f}, Fv: {np.sum(Fv):.2f}")
 
-        # # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Filter out the grasps that are not rational
-        # if (distance < 0.005 and grasp_result == False) or ((distance > 0.015 and grasp_result == True)):
-        #     our_metric, Fv = metrics.calculate_our_metric(measurement)
-        #     antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
-        #     closure_metric = metrics.calculate_closure_metric(measurement, centroid, friction, draw=True)          
-        #     env.render()
+            # save the results
+            result = {
+                "object_id": OBJECT_ID,
+                "grasp_index": i,
+                "friction_coef": friction_coef,
+                "contact_result": contact_result,
+                "grasp_result": grasp_result,
+                "measurement1": measurement1,
+                "measurement2": measurement2}
+            with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
+                f.write(json.dumps(result, ensure_ascii=False) + "\n")
+
+            # # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Filter out the grasps that are not rational
+            # if (distance < 0.005 and grasp_result == False) or ((distance > 0.015 and grasp_result == True)):
+            #     our_metric, Fv = metrics.calculate_our_metric(measurement)
+            #     antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
+            #     closure_metric = metrics.calculate_closure_metric(measurement, centroid, friction, draw=True)          
+            #     env.render()
