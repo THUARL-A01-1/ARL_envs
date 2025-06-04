@@ -13,8 +13,8 @@ from wy_grasp.labels import contact_success, grasp_success
 from wy_grasp.metrics import calculate_our_metric, calculate_antipodal_metric, calculate_closure_metric
 
 
-ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
-# ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
+# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 def simulate(OBJECT_ID, num_samples=500):
     """
@@ -33,10 +33,11 @@ def simulate(OBJECT_ID, num_samples=500):
     4. Save the results to a JSON file.  
     """
     # Step 0: copy the downsampled mesh to the assets folder
-    src = os.path.join(ROOT_DIR, f"cad/assets/{OBJECT_ID}/downsampled.ply")
-    dst = os.path.join(ROOT_DIR, f"cad/assets/downsampled.ply")
+    src = os.path.join(ROOT_DIR, f"cad/assets/{OBJECT_ID}/downsampled_mesh.obj")
+    dst = os.path.join(ROOT_DIR, f"cad/assets/downsampled_mesh.obj")
     if os.path.exists(src):
         shutil.copyfile(src, dst)
+        print(f"Object mesh {OBJECT_ID} loaded.")
     else:
         print(f"Source not found: {src}")
 
@@ -77,14 +78,14 @@ def simulate(OBJECT_ID, num_samples=500):
                 # env.render()
                 continue
     
-            if measurement1[0]["F_mask"].count(True) < 10 or measurement1[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
+            if measurement2[0]["F_mask"].count(True) < 10 or measurement2[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
                 print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
                 continue
 
             centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
             our_metric, Fv = calculate_our_metric(measurement2)
-            antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
-            closure_metric = calculate_closure_metric(measurement1, centroid, friction_coef)
+            antipodal_metric, distance = calculate_antipodal_metric(measurement2, centroid)
+            closure_metric = calculate_closure_metric(measurement2, centroid, friction_coef)
 
             # post-grasp the object
             grasp_result = grasp_success(env)
@@ -103,9 +104,10 @@ def simulate(OBJECT_ID, num_samples=500):
             with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
                 f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-            # # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Filter out the grasps that are not rational
-            # if (distance < 0.005 and grasp_result == False) or ((distance > 0.015 and grasp_result == True)):
-            #     our_metric, Fv = metrics.calculate_our_metric(measurement)
-            #     antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement)
-            #     closure_metric = metrics.calculate_closure_metric(measurement, centroid, friction, draw=True)          
+            # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Filter out the grasps that are not rational
+            # if (np.mean(our_metric) / friction_coef >= 0.8 and closure_metric > 0.5):
+            #     our_metric, Fv = calculate_our_metric(measurement2)
+            #     antipodal_metric, distance = calculate_antipodal_metric(measurement2, centroid)
+            #     print(f"Contact points: {measurement2[0]['F_mask'].count(True)}, {measurement2[1]['F_mask'].count(True)}")
+            #     closure_metric = calculate_closure_metric(measurement2, centroid, friction_coef, draw=True)          
             #     env.render()

@@ -74,7 +74,7 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), friction
     num_fingers = len(measurement)
     G_total, G_finger_total, P_field_total, N_field_total, friction_cones_total = [], [], [], [], []
     for i in range(num_fingers):
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.03
         P_field, N_field, N_field_finger = np.array(measurement[i]["P_field"])[F_mask], np.array(measurement[i]["N_field"])[F_mask], np.array(measurement[i]["N_field_finger"])[F_mask]
         P_field_total.append(P_field)  # (N, 3): The position field of all contact points
         N_field_total.append(N_field)
@@ -180,7 +180,7 @@ def calculate_antipodal_metric(measurement, centroid=np.array([0, 0, 0])):
     metric = np.zeros(num_fingers)
     P_list, N_list, N_finger_list = [], [], []
     for i in range(num_fingers):
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.03
         P_field, N_field, N_field_finger = np.array(measurement[i]["P_field"]), np.array(measurement[i]["N_field"]), np.array(measurement[i]["N_field_finger"])
         P, N, N_finger = np.mean(P_field[F_mask], axis=0), np.mean(N_field[F_mask], axis=0), np.mean(N_field_finger[F_mask], axis=0)
         P_list.append(P)
@@ -218,7 +218,7 @@ def calculate_our_metric(measurement):
         # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
         # ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
 
-        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.1
+        F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.03
         ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         
         metric[i] = sum(ratio[F_mask]) / (sum(F_mask))

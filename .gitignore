@@ -4,3 +4,4 @@
 /results_old_2/
 **/assets/
 **/__pycache__/
+/MUJOCO_LOG.TXT

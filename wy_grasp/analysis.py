@@ -3,8 +3,8 @@ import numpy as np
 import os
 
 
-ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
-# ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
+# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 def load_results(OBJECT_ID):
     """
@@ -28,11 +28,11 @@ def load_results(OBJECT_ID):
     
     # our_metrics = our_metrics / (np.power(Fvs, 0.15) + 1e-6)  # Normalize the our metrics by Fv
     # antipodal_metrics = antipodal_metrics * (10 * np.power(distances, 0.15) + 1e-6)  # Normalize the antipodal metrics by distance
-    friction_threshold = 1.5
+    friction_threshold = 1
     mask = (our_metrics > 0) & (our_metrics < friction_threshold) \
     & (closure_metrics > 0) & (closure_metrics < friction_threshold)\
-    
-    # & (friction_coefs == friction_threshold)\
+    & (friction_coefs == friction_threshold)\
+    # 
     # & (grasp_results==True)
     # & (antipodal_metrics > 0.15) 
     # & (distances > 0.03)
@@ -170,13 +170,13 @@ def analyze_results(OBJECT_ID="all"):
     object_ids, grasp_ids, grasp_results, our_metrics, closure_metrics, antipodal_metrics, friction_coefs, distances, Fvs = load_results(OBJECT_ID)
     
     # Draw histogram
-    # draw_histogram(grasp_results, our_metrics, closure_metrics)
+    draw_histogram(grasp_results, our_metrics, closure_metrics)
     
     # Analyze classification
     # analyze_classification_results(grasp_results, our_metrics)
     
     # Analyze correlation
-    # analyze_correlation(our_metrics, closure_metrics)
+    analyze_correlation(our_metrics, closure_metrics)
     # analyze_correlation_friction(object_ids, grasp_ids, our_metrics)
 
 
