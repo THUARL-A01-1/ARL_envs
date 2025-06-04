@@ -2,5 +2,5 @@
 /results/
 /results_old/
 /results_old_2/
-/cad/assets/
+**/assets/
 **/__pycache__/

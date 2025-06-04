@@ -131,7 +131,7 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), friction
          np.zeros(G_a.shape[1])])
 
     # 变量范围
-    bounds = [(0, 16/n)] * n + [(None, None)]  # a >= 0, f 无约束
+    bounds = [(0, None)] * n + [(None, None)]  # a >= 0, f 无约束
 
     # # 求解
     res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')

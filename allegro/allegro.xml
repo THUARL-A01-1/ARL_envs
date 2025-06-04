@@ -1,0 +1,176 @@
+<mujoco model="allegro_hand">
+  <!-- MuJoCo根元素定义模型名称 -->
+  <compiler angle="radian" meshdir="allegro/assets/visual"/>
+  <option timestep="0.002"/>
+  <include file="allegro/config.xml"/>
+  <asset>
+    <!-- 定义材质 -->
+    <material name="blue" rgba="0 0 0.8 1"/>
+    <material name="black" rgba="0 0 0 1"/>
+    <material name="white" rgba="1 1 1 1"/>
+    
+    <!-- 定义所有使用的网格文件 -->
+    <mesh name="base_mesh" file="40_10_link_g_r.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="f1_mesh" file="40_10_link_f1.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="f2_mesh" file="40_10_link_f2.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="f3_mesh" file="40_10_link_f3.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="f4_mesh" file="40_10_link_f4.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="f5_mesh" file="40_10_link_f5.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="t1_mesh" file="40_10_link_t1_r.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="t2_mesh" file="40_10_link_t2.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="t3_mesh" file="40_10_link_t3.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="t4_mesh" file="40_10_link_t4.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="t5_mesh" file="40_10_link_t5.obj" scale="0.001 0.001 0.001"/>
+  </asset>
+  
+  <worldbody>
+    <!-- 基础光照 -->
+    <light directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" pos="0 0 3" dir="0 0 -1"/>
+    
+    <!-- 地面平面 -->
+    <geom name="ground" type="plane" size="0.5 0.5 0.1" pos="0 0 -0.1" rgba="0.8 0.8 0.8 1"/>
+    
+    <!-- 手掌基础连杆 -->
+    <body name="base_link" pos="0 0 0.1">
+      <inertial pos="0 0 0" mass="0.41685782" diaginertia="0.001375224 0.0012103623 0.00062229538"/>
+      <geom class="visual" type="mesh" mesh="base_mesh" material="blue"/>
+      
+      <!-- ================= 中指 ================= -->
+      <body name="mf1" pos="0 0 0.0166"> <!-- 关节位置偏移 -->
+        <joint name="jmf1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> <!-- 旋转关节定义 -->
+        <inertial pos="0 0 0" mass="0.01135011" diaginertia="2.7e-06 2.057e-06 1.271e-06"/>
+        <geom type="mesh" mesh="f1_mesh" material="blue"/>
+        
+        <body name="mf2" pos="0 0 0"> <!-- 无位置偏移 -->
+          <joint name="jmf2" type="hinge" axis="0 1 0" range="-0.296 1.271"/>
+          <inertial pos="0 0 0" mass="0.071189096" diaginertia="7.048e-06 7.793e-05 7.665e-05"/>
+          <geom type="mesh" mesh="f2_mesh" material="black" euler="-1.5708 0 -1.5708"/>
+          
+          <body name="mf3" pos="0 0 0.054" euler="0 -1.5708 0"> <!-- 位置和旋转偏移 -->
+            <joint name="jmf3" type="hinge" axis="0 1 0" range="-0.274 1.209"/>
+            <inertial pos="0 0 0" mass="0.037588606" diaginertia="3.87e-06 2.939e-05 2.817e-05"/>
+            <geom type="mesh" mesh="f3_mesh" material="blue" euler="-1.5708 0 0"/>
+            
+            <body name="mf4" pos="0.0384 0 0"> <!-- X轴偏移 -->
+              <joint name="jmf4" type="hinge" axis="0 1 0" range="-0.327 1.218"/>
+              <inertial pos="0 0 0" mass="0.0094301124" diaginertia="1.211e-06 2.179e-06 1.559e-06"/>
+              <geom type="mesh" mesh="f4_mesh" material="black" euler="-1.5708 0 0"/>
+              
+              <!-- 固定关节末端 -->
+              <body name="mf5" pos="0.0157 0 0">
+                <inertial pos="0 0 0" mass="0.016654268" diaginertia="1.47e-06 3.85e-06 3.85e-06"/>
+                <geom type="mesh" mesh="f5_mesh" material="white" euler="-1.5708 0 0"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      
+      <!-- ================= 小指 ================= -->
+      <body name="pf1" pos="0 -0.045098 0.014293" euler="0.0872665 0 0">
+        <joint name="jpf1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> <!-- 旋转关节定义 -->
+        <inertial pos="0 0 0" mass="0.01135011" diaginertia="2.7e-06 2.057e-06 1.271e-06"/>
+        <geom type="mesh" mesh="f1_mesh" material="blue"/>
+        
+        <body name="pf2" pos="0 0 0"> <!-- 无位置偏移 -->
+          <joint name="jpf2" type="hinge" axis="0 1 0" range="-0.296 1.271"/>
+          <inertial pos="0 0 0" mass="0.071189096" diaginertia="7.048e-06 7.793e-05 7.665e-05"/>
+          <geom type="mesh" mesh="f2_mesh" material="black" euler="-1.5708 0 -1.5708"/>
+          
+          <body name="pf3" pos="0 0 0.054" euler="0 -1.5708 0"> <!-- 位置和旋转偏移 -->
+            <joint name="jpf3" type="hinge" axis="0 1 0" range="-0.274 1.209"/>
+            <inertial pos="0 0 0" mass="0.037588606" diaginertia="3.87e-06 2.939e-05 2.817e-05"/>
+            <geom type="mesh" mesh="f3_mesh" material="blue" euler="-1.5708 0 0"/>
+            
+            <body name="pf4" pos="0.0384 0 0"> <!-- X轴偏移 -->
+              <joint name="jpf4" type="hinge" axis="0 1 0" range="-0.327 1.218"/>
+              <inertial pos="0 0 0" mass="0.0094301124" diaginertia="1.211e-06 2.179e-06 1.559e-06"/>
+              <geom type="mesh" mesh="f4_mesh" material="black" euler="-1.5708 0 0"/>
+              
+              <!-- 固定关节末端 -->
+              <body name="pf5" pos="0.0157 0 0">
+                <inertial pos="0 0 0" mass="0.016654268" diaginertia="1.47e-06 3.85e-06 3.85e-06"/>
+                <geom type="mesh" mesh="f5_mesh" material="white" euler="-1.5708 0 0"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      
+      <!-- ================= 食指 ================= -->
+      <body name="if1" pos="0 0.045098 0.014293" euler="-0.0872665 0 0">
+        <joint name="jif1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> <!-- 旋转关节定义 -->
+        <inertial pos="0 0 0" mass="0.01135011" diaginertia="2.7e-06 2.057e-06 1.271e-06"/>
+        <geom type="mesh" mesh="f1_mesh" material="blue"/>
+        
+        <body name="if2" pos="0 0 0"> <!-- 无位置偏移 -->
+          <joint name="jif2" type="hinge" axis="0 1 0" range="-0.296 1.271"/>
+          <inertial pos="0 0 0" mass="0.071189096" diaginertia="7.048e-06 7.793e-05 7.665e-05"/>
+          <geom type="mesh" mesh="f2_mesh" material="black" euler="-1.5708 0 -1.5708"/>
+          
+          <body name="if3" pos="0 0 0.054" euler="0 -1.5708 0"> <!-- 位置和旋转偏移 -->
+            <joint name="jif3" type="hinge" axis="0 1 0" range="-0.274 1.209"/>
+            <inertial pos="0 0 0" mass="0.037588606" diaginertia="3.87e-06 2.939e-05 2.817e-05"/>
+            <geom type="mesh" mesh="f3_mesh" material="blue" euler="-1.5708 0 0"/>
+            
+            <body name="if4" pos="0.0384 0 0"> <!-- X轴偏移 -->
+              <joint name="jif4" type="hinge" axis="0 1 0" range="-0.327 1.218"/>
+              <inertial pos="0 0 0" mass="0.0094301124" diaginertia="1.211e-06 2.179e-06 1.559e-06"/>
+              <geom type="mesh" mesh="f4_mesh" material="black" euler="-1.5708 0 0"/>
+              
+              <!-- 固定关节末端 -->
+              <body name="if5" pos="0.0157 0 0">
+                <inertial pos="0 0 0" mass="0.016654268" diaginertia="1.47e-06 3.85e-06 3.85e-06"/>
+                <geom type="mesh" mesh="f5_mesh" material="white" euler="-1.5708 0 0"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      
+      <!-- ================= 拇指 ================= -->
+      <body name="th1" pos="-0.0182 0.016958 -0.0723" euler="-0.0872665 0 0">
+        <joint name="jth1" type="hinge" axis="0 1 0" range="0.36357 1.4968"/>
+        <inertial pos="0 0 0" mass="0.079809876" diaginertia="4.711e-05 2.941e-05 4.051e-05"/>
+        <geom type="mesh" mesh="t1_mesh" material="blue"/>
+        
+        <body name="th2" pos="0.005 0.055189 0">
+          <joint name="jth2" type="hinge" axis="0 0 -1" range="-0.205 1.13"/>
+          <inertial pos="0 0 0" mass="0.01135011" diaginertia="2.7e-06 2.057e-06 1.271e-06"/>
+          <geom type="mesh" mesh="t2_mesh" material="blue" euler="0 0 0"/>
+          
+          <body name="th3" pos="0 0 0">
+            <joint name="jth3" type="hinge" axis="0 0 -1" range="-0.2897 1.633"/>
+            <inertial pos="0 0 0" mass="0.040206693" diaginertia="4.341e-06 2.179e-05 2.028e-05"/>
+            <geom type="mesh" mesh="t3_mesh" material="black" euler="0 0 1.5708"/>
+            
+            <body name="th4" pos="0 0.051204 0">
+              <joint name="jth4" type="hinge" axis="0 0 -1" range="-0.2622 1.819"/>
+              <inertial pos="0 0 0" mass="0.040750131" diaginertia="3.942e-06 1.647e-05 1.547e-05"/>
+              <geom type="mesh" mesh="t4_mesh" material="blue" euler="0 0 1.5708"/>
+              
+              <!-- 拇指末端固定部分 -->
+              <body name="th5" pos="0 0.0313 0" euler="0 -1.4835335 0">
+                <inertial pos="0 0 0" mass="0.016654268" diaginertia="1.47e-06 3.85e-06 3.85e-06"/>
+                <geom type="mesh" mesh="f5_mesh" material="white" euler="0 0 1.5708"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  
+  <actuator>
+    <!-- 为所有可动关节添加执行器 -->
+    <motor joint="jmf1" gear="1"/>
+    <motor joint="jmf2" gear="1"/>
+    <motor joint="jmf3" gear="1"/>
+    <motor joint="jmf4" gear="1"/>
+    <!-- 其他关节执行器类似添加 -->
+    <motor joint="jth1" gear="1"/>
+    <motor joint="jth2" gear="1"/>
+    <motor joint="jth3" gear="1"/>
+    <motor joint="jth4" gear="1"/>
+  </actuator>
+</mujoco>

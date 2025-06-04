@@ -13,8 +13,8 @@ from wy_grasp.labels import contact_success, grasp_success
 from wy_grasp.metrics import calculate_our_metric, calculate_antipodal_metric, calculate_closure_metric
 
 
-# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
-ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
+ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+# ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 def simulate(OBJECT_ID, num_samples=500):
     """

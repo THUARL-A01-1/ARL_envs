@@ -5,8 +5,8 @@ import open3d as o3d
 import os
 
 
-# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
-ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
+ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+# ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 def preprocess_results(OBJECT_ID):
     """
@@ -32,10 +32,10 @@ def preprocess_results(OBJECT_ID):
             grasp_result = result["grasp_result"]
             measurement1, measurement2 = result["measurement1"], result["measurement2"]
             if contact_result == True:
-                centroid = initial_centroid + np.array(measurement1[0]["object_pos"])  # Update the centroid with the object position
+                centroid = initial_centroid + np.array(measurement2[0]["object_pos"])  # Update the centroid with the object position
                 our_metric, Fv = metrics.calculate_our_metric(measurement2)
-                antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement1, centroid)
-                closure_metric = metrics.calculate_closure_metric(measurement1, centroid, fricion_coef)
+                antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement2, centroid)
+                closure_metric = metrics.calculate_closure_metric(measurement2, centroid, fricion_coef)
 
                 metrics_list.append({
                     "object_id": object_id,
