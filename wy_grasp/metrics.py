@@ -131,7 +131,7 @@ def calculate_closure_metric(measurement, centroid=np.array([0, 0, 0]), friction
          np.zeros(G_a.shape[1])])
 
     # 变量范围
-    bounds = [(0, None)] * n + [(None, None)]  # a >= 0, f 无约束
+    bounds = [(0, 16 / n)] * n + [(None, None)]  # a >= 0, f 无约束
 
     # # 求解
     res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
@@ -215,13 +215,13 @@ def calculate_our_metric(measurement):
         #         f_vertical = f - f_parallel
         #         f_corrected = f_parallel + cos * f_vertical + sin * np.cross(t, f_vertical)
         #         F_field_corrected[j] = f_corrected
-        # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.1
+        # F_mask = np.linalg.norm(F_field_corrected, axis=1) > 0.03
         # ratio = np.linalg.norm(F_field_corrected[:, :2], axis=1)
 
         F_mask = np.linalg.norm(measurement[i]["Fn_field"], axis=1) > 0.03
         ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / np.linalg.norm(measurement[i]["Fn_field"], axis=1)
         
-        metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
+        metric[i] = sum(ratio[F_mask]) / (sum(F_mask) * np.max(ratio[F_mask]))
 
         # metric[i] = np.sum(np.linalg.norm(measurement[i]["Ft_field"], axis=1)) / np.sum(np.linalg.norm(measurement[i]["Fn_field"], axis=1))
 

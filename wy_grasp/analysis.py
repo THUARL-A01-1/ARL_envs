@@ -18,21 +18,26 @@ def load_results(OBJECT_ID):
         """
     data = np.load(os.path.join(ROOT_DIR, f"results/{OBJECT_ID}/grasp_metrics.npz"))
     our_metrics = np.mean(data['our_metrics'], axis=1)  # Combine the metrics from both fingers
-    our_metrics = np.nan_to_num(our_metrics, nan=1)  # Replace NaN with 100
+    our_metrics = np.nan_to_num(our_metrics, nan=10)  # Replace NaN with 100
     antipodal_metrics = np.sum(data['antipodal_metrics'], axis=1)  # Combine the metrics from both fingers
-    antipodal_metrics = np.nan_to_num(antipodal_metrics, nan=1)  # Replace NaN with 100
+    antipodal_metrics = np.nan_to_num(antipodal_metrics, nan=10)  # Replace NaN with 100
     closure_metrics = data['closure_metrics']  # Combine the metrics from both fingers
-    closure_metrics = np.nan_to_num(closure_metrics, nan=1)  # Replace NaN with 100
+    closure_metrics = np.nan_to_num(closure_metrics, nan=10)  # Replace NaN with 100
+    distances = data['distances']
+    distances = np.nan_to_num(distances, nan=10)
     Fvs = np.abs(np.sum(data['Fvs'], axis=1))
-    object_ids, grasp_ids, grasp_results, friction_coefs, distances = data['object_ids'], data['grasp_ids'], data['grasp_results'], data['friction_coefs'], data['distances']
+    object_ids, grasp_ids, grasp_results, friction_coefs = data['object_ids'], data['grasp_ids'], data['grasp_results'], data['friction_coefs']
     
     # our_metrics = our_metrics / (np.power(Fvs, 0.15) + 1e-6)  # Normalize the our metrics by Fv
     # antipodal_metrics = antipodal_metrics * (10 * np.power(distances, 0.15) + 1e-6)  # Normalize the antipodal metrics by distance
-    friction_threshold = 1
-    mask = (our_metrics > 0) & (our_metrics < friction_threshold) \
-    & (closure_metrics > 0) & (closure_metrics < friction_threshold)\
-    & (friction_coefs == friction_threshold)\
+    friction_threshold = 1.5
+    mask = (our_metrics > 0) & (our_metrics < 0.999)\
+    & (closure_metrics > 0) & (closure_metrics < 2)\
+    & (antipodal_metrics > 0) & (antipodal_metrics < 0.5)\
+    & (distances > 0) & (distances < 1)\
+    
     # 
+    # & (friction_coefs == friction_threshold)\
     # & (grasp_results==True)
     # & (antipodal_metrics > 0.15) 
     # & (distances > 0.03)
@@ -138,18 +143,21 @@ def analyze_correlation_friction(object_ids, grasp_ids, metrics):
 
     delta_metrics = []
     frictions = []
+    objects = []
     for target_pair in target_pairs:
         idx = [i for i, pair in enumerate(pairs) if pair == target_pair]
         delta_metric = metrics[idx]# - metrics[idx[0]]  # reduce the metric with mu=0.5
         delta_metrics.append(delta_metric)
         frictions.append([0.5, 0.75, 1.0, 1.25, 1.5])
+        objects.append(object_ids[idx[0]])
     delta_metrics = np.array(delta_metrics)
     frictions = np.array(frictions)
     from scipy.stats import pearsonr
     corr, pval = pearsonr(frictions.reshape(-1), delta_metrics.reshape(-1))
     print(f"1. Our Metric 与 Closure Metric 的皮尔逊相关系数: {corr:.4f}, p值: {pval:.4e}")
-    plt.plot(delta_metrics.T, alpha=0.5, marker='o', markersize=2, linestyle='-', color='b')
-    plt.show()
+    # plt.plot(delta_metrics.T, alpha=0.5, marker='o', markersize=2, linestyle='-', label=objects)
+    # plt.legend()
+    # plt.show()
     means, stds = np.mean(delta_metrics, axis=0), np.std(delta_metrics, axis=0)
     bins = np.linspace(0.5, 1.75, 6)
     plt.errorbar(bins[:-1] + 0.005, means, yerr=stds, fmt='o', color="b", capsize=2, label='Our Metric Mean ± Std')
@@ -169,15 +177,15 @@ def analyze_results(OBJECT_ID="all"):
     # load grasp results
     object_ids, grasp_ids, grasp_results, our_metrics, closure_metrics, antipodal_metrics, friction_coefs, distances, Fvs = load_results(OBJECT_ID)
     
-    # Draw histogram
-    draw_histogram(grasp_results, our_metrics, closure_metrics)
-    
     # Analyze classification
     # analyze_classification_results(grasp_results, our_metrics)
     
+    # Draw histogram
+    # draw_histogram(grasp_results, our_metrics, closure_metrics)
+    
     # Analyze correlation
-    analyze_correlation(our_metrics, closure_metrics)
-    # analyze_correlation_friction(object_ids, grasp_ids, our_metrics)
+    # analyze_correlation(our_metrics, distances)
+    analyze_correlation_friction(object_ids, grasp_ids, our_metrics)
 
 
 if __name__ == "__main__":

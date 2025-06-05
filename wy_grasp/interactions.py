@@ -8,7 +8,7 @@ def pre_grasp(env, point, normal, angle, depth):
     Args: env (DexHandEnv): The DexHand environment. point, normal, depth: Target position of shape (3, 3, 1).
     Note: translation: qpos[0:3], rotation: qpos[3:6]
     """
-    translation = point + normal * (depth + 0.15)  # 0.13 is the offset from the base mount to the center of the fingers
+    translation = point + normal * (depth + 0.035)  # 0.033 is the offset from the base mount to the center of the fingers
     R_to_normal, _ = R.align_vectors([normal], [[0, 0, 1]])
     R_about_normal = R.from_rotvec(angle * normal)
     rot = R_about_normal * R_to_normal

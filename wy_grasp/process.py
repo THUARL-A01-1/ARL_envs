@@ -31,10 +31,11 @@ def preprocess_results(OBJECT_ID):
             contact_result = result["contact_result"]
             grasp_result = result["grasp_result"]
             measurement1, measurement2 = result["measurement1"], result["measurement2"]
-            if contact_result == True:
+            F_mask_left, F_mask_right = np.linalg.norm(measurement2[0]["Fn_field"], axis=1) > 0.03, np.linalg.norm(measurement2[1]["Fn_field"], axis=1) > 0.03
+            if contact_result == True and F_mask_left.tolist().count(True) > 10 and F_mask_right.tolist().count(True) > 10:
                 centroid = initial_centroid + np.array(measurement1[0]["object_pos"])  # Update the centroid with the object position
                 our_metric, Fv = metrics.calculate_our_metric(measurement2)
-                antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement2, centroid)
+                antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement1, centroid)
                 closure_metric = metrics.calculate_closure_metric(measurement2, centroid, fricion_coef)
 
                 metrics_list.append({
