@@ -1,34 +1,17 @@
 <mujoco>
-    <include file="dexhand/config.xml"/>
-    <include file="dexhand/visual.xml"/>
-    <include file="dexhand/dexhand.xml"/>
+    <include file="allegro/config.xml"/>
+    <include file="allegro/visual.xml"/>
+    <include file="allegro/allegro.xml"/>
     <!-- your obj file here -->
     <asset>
-        <!-- <mesh file="E:\2 - 3_Technical_material\Simulator\ARL_envs\cad\assets\downsampled_mesh.obj" name="object"/> -->
-        <mesh file="/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets/downsampled_mesh.obj" name="object"/>
+        <mesh file="E:\2 - 3_Technical_material\Simulator\ARL_envs\cad\assets\downsampled_mesh.obj" name="object"/>
+        <!-- <mesh file="/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs/cad/assets/downsampled_mesh.obj" name="object"/> -->
     </asset>
     <!-- The object -->
     <worldbody>
-        <!-- cylinder -->
-        <!-- <body pos="0.0 -0.0 0.10" zaxis="0 0 1" gravcomp="1">
-            <freejoint name="object_joint"/>
-            <geom class="object" name="object" type="cylinder" size="0.04 0.06" mass="0.3" rgba=".5 .5 0 1"/>
-        </body> -->
-        <!-- box -->
-        <!-- <body pos="0.0 0.0 0.02">
-            <freejoint name="object_joint"/>
-            <geom class="object" name="object" type="box" size="0.02 0.02 0.02" mass="0.3" friction="1.0" rgba="0.5 0.5 0 1"/>
-        </body> -->
-        <!-- bar -->
-        <!-- <body pos="0.0 0.0 0" gravcomp="1">
-            <freejoint name="object_joint"/>
-            <geom class="object" name="object" type="box" size="0.02 0.1 0.03" mass="0.3" rgba="0.5 0.5 0 1"/>
-        </body> -->
-        <!-- hand_base -->
-        <body pos="0.0 0.0 0.0" gravcomp="1">
+        <body pos="0.13 0.0 0.0" gravcomp="1" xyaxes="0 0 1 0 1 0">
             <joint name="object_joint" type="free" frictionloss="0.001" damping="0.001"/>
             <geom class="object" name="object" mesh="object" mass="0.1" material="white"/>
-            <!-- <geom class="visual" name="centroid" type="sphere" size="0.01" material="black"/> -->
         </body>
     </worldbody>
 </mujoco>

@@ -4,7 +4,7 @@ import os
 
 
 def test_in_GUI():
-    model_path = os.path.join('allegro', 'allegro.xml')
+    model_path = os.path.join('allegro', 'scene.xml')
     with open(model_path,"r",encoding='utf-8') as f:
         xml_content = f.read()
     model = mujoco.MjModel.from_xml_string(xml_content)

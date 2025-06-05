@@ -12,11 +12,11 @@
             <geom type="mesh" group="1"/>
             <mesh scale="0.001 0.001 0.001"/>
         </default>
-        <default class="dexhand">
+        <default class="hand">
             <general biastype="affine"/>
             <joint axis="1 0 0"/>
             <default class="driver">
-                <joint type="slide" range="0 0.055" armature="0.01" damping="20" solimplimit="0.95 0.99 0.001" solreflimit="0.005"/>
+                <joint type="hinge" range="0 0.055" stiffness="1" frictionloss="1" damping="10" limited="true"/>
             </default>
             <default class="visual"> 
                 <geom type="mesh" contype="0" conaffinity="0" group="2"/>
