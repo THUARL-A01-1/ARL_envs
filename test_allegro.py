@@ -1,5 +1,7 @@
+from allegro.allegro import AllegroEnv
 import mujoco
 import mujoco.viewer as viewer
+import numpy as np
 import os
 
 
@@ -13,7 +15,17 @@ def test_in_GUI():
     viewer.launch(model, mj_data)
 
 
-
+def test_env():
+    env = AllegroEnv()
+    _ = env.reset()
+    env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 3]))
+    env.step(np.array([0, 0, 0, 0, 0, 0, 3]))
+    env.step(np.array([0, 0, 0.05, 0, 0, 0, 3]))
+    body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
+    env.mj_model.body_gravcomp[body_id] = 0.0
+    env.step(np.array([0, 0, 0.05, 0, 0, 0, 3]), sleep=False)
+    env.render()
 
 
 
@@ -21,4 +33,5 @@ def test_in_GUI():
 
 
 if __name__ == "__main__":
-    test_in_GUI()
+    # test_in_GUI()
+    test_env()

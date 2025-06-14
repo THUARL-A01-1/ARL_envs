@@ -1,5 +1,5 @@
 """
-碰撞检测：给定gripper的几何体，判断point_cloud是否与几何体干涉
+碰撞检测:给定gripper的几何体, 判断point_cloud是否与几何体干涉
 """
 
 import open3d as o3d

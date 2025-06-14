@@ -1,7 +1,5 @@
 # Results
-/results/
-/results_old/
-/results_old_2/
+**/results/
 **/assets/
 **/__pycache__/
 /MUJOCO_LOG.TXT

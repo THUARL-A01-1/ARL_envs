@@ -1,167 +1,185 @@
 <mujoco model="allegro_hand">
+  <include file="allegro/assets/tactile/touch_sensors.xml"/>
+
   <asset>
     <!-- 定义所有使用的网格文件 -->
-    <mesh name="base_mesh" file="40_10_link_g_r.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="f1_mesh" file="40_10_link_f1.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="f2_mesh" file="40_10_link_f2.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="f3_mesh" file="40_10_link_f3.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="f4_mesh" file="40_10_link_f4.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="t1_mesh" file="40_10_link_t1_r.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="t2_mesh" file="40_10_link_t2.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="t3_mesh" file="40_10_link_t3.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="t4_mesh" file="40_10_link_t4.obj" scale="0.001 0.001 0.001"/>
+    <mesh class="object" name="base_mesh" file="40_10_link_g_r.obj"/>
+    <mesh class="object" name="f1_mesh" file="40_10_link_f1.obj"/>
+    <mesh class="object" name="f2_mesh" file="40_10_link_f2.obj"/>
+    <mesh class="object" name="f3_mesh" file="40_10_link_f3.obj"/>
+    <mesh class="object" name="f4_mesh" file="40_10_link_f4.obj"/>
+    <mesh class="object" name="t1_mesh" file="40_10_link_t1_r.obj"/>
+    <mesh class="object" name="t2_mesh" file="40_10_link_t2.obj"/>
+    <mesh class="object" name="t3_mesh" file="40_10_link_t3.obj"/>
+    <mesh class="object" name="t4_mesh" file="40_10_link_t4.obj"/>
     <mesh class="hand" file="tac3d.obj" name="finger"/>
     <mesh class="hand" file="pad.obj" name="pad"/>
   </asset>
   
   <worldbody>
-    <!-- 手掌基座 -->
-    <body name="base" pos="0 0 0" zaxis="0 0 1" childclass="hand" gravcomp="1">
-      <joint name="hand_base_joint_x" type="slide" pos="0 0 0" axis="1 0 0" range="-1 1"/>
-      <joint name="hand_base_joint_y" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1"/>
-      <joint name="hand_base_joint_z" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1"/>
-      <joint name="hand_base_joint_pitch" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.14 3.14"/>
-      <joint name="hand_base_joint_roll" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.14 3.14"/>
-      <joint name="hand_base_joint_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
-      <geom class="visual" type="mesh" mesh="base_mesh" material="metal"/>
+    <body name="base_mount" pos="0 0 0" zaxis="0 0 1" childclass="hand" gravcomp="1">
+      <joint class="mount" name="base_mount_joint_x" type="slide" pos="0 0 0" axis="1 0 0" range="-1 1"/>
+      <joint class="mount" name="base_mount_joint_y" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1"/>
+      <joint class="mount" name="base_mount_joint_z" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1"/>
+      <joint class="mount" name="base_mount_joint_pitch" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.14 3.14"/>
+      <joint class="mount" name="base_mount_joint_roll" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.14 3.14"/>
+      <joint class="mount" name="base_mount_joint_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+      <geom class="visual" type="sphere" size="0.01" material="metal"/>
       <body name="hand_frame" pos="0 0 0" gravcomp="1">
         <geom class="visual" type="cylinder" size="0.003 0.03" pos="0.03 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
         <geom class="visual" type="cylinder" size="0.003 0.03" pos="0 0.03 0" zaxis="0 1 0" rgba="0 1 0 1"/>
         <geom class="visual" type="cylinder" size="0.003 0.03" pos="0 0 0.03" zaxis="0 0 1" rgba="0 0 1 1"/>
       </body>
-      <!-- ================= 拇指 ================= -->
-      <body name="th1" pos="-0.0182 0.016958 -0.0723" euler="-1.6580665 0 0">
-        <joint class="driver" name="jth1" type="hinge" axis="0 1 0" range="-0.07 1.5708"/> <!-- 旋转关节定义 -->
-        <geom class="visual" type="mesh" mesh="t1_mesh" material="gray" xyaxes="1 0 0 0 0 1"/>
-        <body name="th2" pos="0.005 0 0.055189"> <!-- 无位置偏移 -->
-          <joint class="driver" name="jth2" type="hinge" axis="0 0 1" range="-0.296 1.71"/>
-          <geom class="visual" type="mesh" mesh="t2_mesh" material="black" xyaxes="0 -1 0 1 0 0"/>
+      <!-- 手掌基座 -->
+      <body name="base" pos="0.005 0 0.113" euler="0 1.7208 0" childclass="hand" gravcomp="1">
+        <geom class="visual" type="mesh" mesh="base_mesh" material="metal"/>
+        <!-- ================= 拇指 ================= -->
+        <body name="th1" pos="-0.0182 0.016958 -0.0723" euler="-1.6580665 1.5708 0">
+          <!-- <joint class="driver" name="jth1" type="hinge" axis="0 1 0" range="-0.07 1.5708"/> -->
+          <joint class="driver" name="jth1" type="hinge" axis="0 1 0"/>
+          <geom class="visual" type="mesh" mesh="t1_mesh" material="gray" xyaxes="1 0 0 0 0 1"/>
           
-          <body name="th3" pos="0 0 0"> <!-- 位置和旋转偏移 -->
-            <joint class="driver" name="jth3" type="hinge" axis="1 0 0" range="-0.274 1.809"/>
-            <geom class="visual" type="mesh" mesh="t3_mesh" material="gray" xyaxes="0 0 1 0 -1 0"/>
+          <body name="th2" pos="0.005 0 0.055189" euler="0 0 0.13"> <!-- 无位置偏移 -->
+            <!-- <joint class="driver" name="jth2" type="hinge" axis="0 0 1" range="-0.296 1.71"/> -->
+            <joint class="driver" name="jth2" type="hinge" axis="0 0 1"/>
+            <geom class="visual" type="mesh" mesh="t2_mesh" material="black" xyaxes="0 -1 0 1 0 0"/>
+            
+            <body name="th3" pos="0 0 0"> <!-- 位置和旋转偏移 -->
+              <joint class="driver" name="jth3" type="hinge" axis="1 0 0" range="-0.274 1.809"/>
+              <geom class="visual" type="mesh" mesh="t3_mesh" material="gray" xyaxes="0 0 1 0 -1 0"/>
 
-            <body name="th4" pos="0 0 0.051204"> <!-- X轴偏移 -->
-              <joint class="driver" name="jth4" type="hinge" axis="1 0 0" range="-0.327 1.718"/>
-              <geom class="visual" type="mesh" mesh="t4_mesh" material="black" xyaxes="0 0 1 0 -1 0"/>
+              <body name="th4" pos="0 0 0.051204"> <!-- X轴偏移 -->
+                <!-- <joint class="driver" name="jth4" type="hinge" axis="1 0 0" range="-0.327 1.718"/> -->
+                <joint class="driver" name="jth4" type="hinge" axis="1 0 0"/>
+                <geom class="visual" type="mesh" mesh="t4_mesh" material="black" xyaxes="0 0 1 0 -1 0"/>
 
-              <!-- 固定关节末端 -->
-              <body name="th5" pos="0 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
-                <geom class="visual" mesh="finger" material="black" pos="-0.019 -0.113 -0.13" xyaxes="0 1 0 0 0 1"/>
-                <body name="th5_pad" pos="0 -0.009 0.038" xyaxes="0 0 1 -1 0 0" gravcomp="1">
-                  <body name="th5_pad_frame" pos="0 0 0" gravcomp="1">
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                <!-- 固定关节末端 -->
+                <body name="th5" pos="0 0 0" euler="0.15 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
+                  <geom class="visual" mesh="finger" material="black" pos="-0.019 -0.113 -0.13" xyaxes="0 1 0 0 0 1"/>
+                  <body name="th5_pad" pos="0 -0.009 0.038" xyaxes="0 0 1 -1 0 0" gravcomp="1">
+                    <body name="th5_pad_frame" pos="0 0 0" gravcomp="1">
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                    </body>
+                    <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
+                    <include file="allegro/assets/tactile/th5_pad_collisions.xml"/>
+                    <site name="th5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                   </body>
-                  <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
-                  <include file="allegro/assets/tactile/th5_pad_collisions.xml"/>
-                  <site name="th5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                 </body>
               </body>
             </body>
           </body>
         </body>
-      </body>
-      <!-- ================= 食指 ================= -->
-      <body name="if1" pos="0 0.045098 0.014293" euler="-0.0872665 0 0">
-        <joint class="driver" name="jif1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> <!-- 旋转关节定义 -->
-        <geom class="visual" type="mesh" mesh="f1_mesh" material="gray"/>
-        
-        <body name="if2" pos="0 0 0"> <!-- 无位置偏移 -->
-          <joint class="driver" name="jif2" type="hinge" axis="0 1 0" range="-0.296 1.71"/>
-          <geom class="visual" type="mesh" mesh="f2_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+        <!-- ================= 食指 ================= -->
+        <body name="if1" pos="0 0.045098 0.014293" euler="-0.0872665 0 0">
+          <!-- <joint class="driver" name="jif1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> -->
+          <joint class="driver" name="jif1" type="hinge" axis="0 0 1"/>
+          <geom class="visual" type="mesh" mesh="f1_mesh" material="gray"/>
           
-          <body name="if3" pos="0 0 0.054"> <!-- 位置和旋转偏移 -->
-            <joint class="driver" name="jif3" type="hinge" axis="0 1 0" range="-0.274 1.809"/>
-            <geom class="visual" type="mesh" mesh="f3_mesh" material="gray" xyaxes="0 0 1 1 0 0"/>
+          <body name="if2" pos="0 0 0" euler="0 0.5854 0"> <!-- 无位置偏移 -->
+            <joint class="driver" name="jif2" type="hinge" axis="0 1 0" range="-0.296 1.71"/>
+            <geom class="visual" type="mesh" mesh="f2_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+            
+            <body name="if3" pos="0 0 0.054" euler="0 0.4236 0"> <!-- 位置和旋转偏移 -->
+              <!-- <joint class="driver" name="jif3" type="hinge" axis="0 1 0" range="-0.274 1.809"/> -->
+              <joint class="driver" name="jif3" type="hinge" axis="0 1 0"/>
+              <geom class="visual" type="mesh" mesh="f3_mesh" material="gray" xyaxes="0 0 1 1 0 0"/>
 
-            <body name="if4" pos="0 0 0.0384"> <!-- X轴偏移 -->
-              <joint class="driver" name="jif4" type="hinge" axis="0 1 0" range="-0.327 1.718"/>
-              <geom class="visual" type="mesh" mesh="f4_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+              <body name="if4" pos="0 0 0.0384" euler="0 0.3536 0"> <!-- X轴偏移 -->
+                <!-- <joint class="driver" name="jif4" type="hinge" axis="0 1 0" range="-0.327 1.718"/> -->
+                <joint class="driver" name="jif4" type="hinge" axis="0 1 0"/>
+                <geom class="visual" type="mesh" mesh="f4_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
 
-              <!-- 固定关节末端 -->
-              <body name="if5" pos="0 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
-                <geom class="visual" mesh="finger" material="black" pos="0.113 -0.019 -0.13" xyaxes="-1 0 0 0 0 1"/>
-                <body name="if5_pad" pos="0.009 0 0.038" xyaxes="0 0 1 0 -1 0" gravcomp="1">
-                  <body name="if5_pad_frame" pos="0 0 0" gravcomp="1">
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                <!-- 固定关节末端 -->
+                <body name="if5" pos="0 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
+                  <geom class="visual" mesh="finger" material="black" pos="0.113 -0.019 -0.13" xyaxes="-1 0 0 0 0 1"/>
+                  <body name="if5_pad" pos="0.009 0 0.038" xyaxes="0 0 1 0 -1 0" gravcomp="1">
+                    <body name="if5_pad_frame" pos="0 0 0" gravcomp="1">
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                    </body>
+                    <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
+                    <include file="allegro/assets/tactile/if5_pad_collisions.xml"/>
+                    <site name="if5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                   </body>
-                  <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
-                  <include file="allegro/assets/tactile/if5_pad_collisions.xml"/>
-                  <site name="if5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                 </body>
               </body>
             </body>
           </body>
         </body>
-      </body>
-      <!-- ================= 中指 ================= -->
-      <body name="mf1" pos="0 0 0.0166"> <!-- 关节位置偏移 -->
-        <joint class="driver" name="jmf1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> <!-- 旋转关节定义 -->
-        <geom class="visual" type="mesh" mesh="f1_mesh" material="gray"/>
-        
-        <body name="mf2" pos="0 0 0"> <!-- 无位置偏移 -->
-          <joint class="driver" name="jmf2" type="hinge" axis="0 1 0" range="-0.296 1.71"/>
-          <geom class="visual" type="mesh" mesh="f2_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+        <!-- ================= 中指 ================= -->
+        <body name="mf1" pos="0 0 0.0166" euler="0 0 0.0536"> <!-- 关节位置偏移 -->
+          <!-- <joint class="driver" name="jmf1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> -->
+          <joint class="driver" name="jmf1" type="hinge" axis="0 0 1"/>
+          <geom class="visual" type="mesh" mesh="f1_mesh" material="gray"/>
           
-          <body name="mf3" pos="0 0 0.054"> <!-- 位置和旋转偏移 -->
-            <joint class="driver" name="jmf3" type="hinge" axis="0 1 0" range="-0.274 1.809"/>
-            <geom class="visual" type="mesh" mesh="f3_mesh" material="gray" xyaxes="0 0 1 1 0 0"/>
+          <body name="mf2" pos="0 0 0" euler="0 0.5854 0"> <!-- 无位置偏移 -->
+            <joint class="driver" name="jmf2" type="hinge" axis="0 1 0" range="-0.296 1.71"/>
+            <geom class="visual" type="mesh" mesh="f2_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+            
+            <body name="mf3" pos="0 0 0.054" euler="0 0.4236 0"> <!-- 位置和旋转偏移 -->
+              <!-- <joint class="driver" name="jmf3" type="hinge" axis="0 1 0" range="-0.274 1.809"/> -->
+              <joint class="driver" name="jmf3" type="hinge" axis="0 1 0"/>
+              <geom class="visual" type="mesh" mesh="f3_mesh" material="gray" xyaxes="0 0 1 1 0 0"/>
 
-            <body name="mf4" pos="0 0 0.0384"> <!-- X轴偏移 -->
-              <joint class="driver" name="jmf4" type="hinge" axis="0 1 0" range="-0.327 1.718"/>
-              <geom class="visual" type="mesh" mesh="f4_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+              <body name="mf4" pos="0 0 0.0384" euler="0 0.3536 0"> <!-- X轴偏移 -->
+                <!-- <joint class="driver" name="jmf4" type="hinge" axis="0 1 0" range="-0.327 1.718"/> -->
+                <joint class="driver" name="jmf4" type="hinge" axis="0 1 0"/>
+                <geom class="visual" type="mesh" mesh="f4_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
 
-              <!-- 固定关节末端 -->
-              <body name="mf5" pos="0 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
-                <geom class="visual" mesh="finger" material="black" pos="0.113 -0.019 -0.13" xyaxes="-1 0 0 0 0 1"/>
-                <body name="mf5_pad" pos="0.009 0 0.038" xyaxes="0 0 1 0 -1 0" gravcomp="1">
-                  <body name="mf5_pad_frame" pos="0 0 0" gravcomp="1">
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                <!-- 固定关节末端 -->
+                <body name="mf5" pos="0 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
+                  <geom class="visual" mesh="finger" material="black" pos="0.113 -0.019 -0.13" xyaxes="-1 0 0 0 0 1"/>
+                  <body name="mf5_pad" pos="0.009 0 0.038" xyaxes="0 0 1 0 -1 0" gravcomp="1">
+                    <body name="mf5_pad_frame" pos="0 0 0" gravcomp="1">
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                    </body>
+                    <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
+                    <include file="allegro/assets/tactile/mf5_pad_collisions.xml"/>
+                    <site name="mf5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                   </body>
-                  <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
-                  <include file="allegro/assets/tactile/mf5_pad_collisions.xml"/>
-                  <site name="mf5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                 </body>
               </body>
             </body>
           </body>
         </body>
-      </body>
-      <!-- ================= 小指 ================= -->
-      <body name="pf1" pos="0 -0.045098 0.014293" euler="0.0872665 0 0">
-        <joint class="driver" name="jpf1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> <!-- 旋转关节定义 -->
-        <geom class="visual" type="mesh" mesh="f1_mesh" material="gray"/>
-        
-        <body name="pf2" pos="0 0 0"> <!-- 无位置偏移 -->
-          <joint class="driver" name="jpf2" type="hinge" axis="0 1 0" range="-0.296 1.71"/>
-          <geom class="visual" type="mesh" mesh="f2_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+        <!-- ================= 小指 ================= -->
+        <body name="pf1" pos="0 -0.045098 0.014293" euler="0.0872665 0 0">
+          <!-- <joint class="driver" name="jpf1" type="hinge" axis="0 0 1" range="-0.57 0.57"/> -->
+          <joint class="driver" name="jpf1" type="hinge" axis="0 0 1"/>
+          <geom class="visual" type="mesh" mesh="f1_mesh" material="gray"/>
           
-          <body name="pf3" pos="0 0 0.054"> <!-- 位置和旋转偏移 -->
-            <joint class="driver" name="jpf3" type="hinge" axis="0 1 0" range="-0.274 1.809"/>
-            <geom class="visual" type="mesh" mesh="f3_mesh" material="gray" xyaxes="0 0 1 1 0 0"/>
+          <body name="pf2" pos="0 0 0" euler="0 0.5854 0"> <!-- 无位置偏移 -->
+            <joint class="driver" name="jpf2" type="hinge" axis="0 1 0" range="-0.296 1.71"/>
+            <geom class="visual" type="mesh" mesh="f2_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+            
+            <body name="pf3" pos="0 0 0.054" euler="0 0.4236 0"> <!-- 位置和旋转偏移 -->
+              <!-- <joint class="driver" name="jpf3" type="hinge" axis="0 1 0" range="-0.274 1.809"/> -->
+              <joint class="driver" name="jpf3" type="hinge" axis="0 1 0"/>
+              <geom class="visual" type="mesh" mesh="f3_mesh" material="gray" xyaxes="0 0 1 1 0 0"/>
 
-            <body name="pf4" pos="0 0 0.0384"> <!-- X轴偏移 -->
-              <joint class="driver" name="jpf4" type="hinge" axis="0 1 0" range="-0.327 1.718"/>
-              <geom class="visual" type="mesh" mesh="f4_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
+              <body name="pf4" pos="0 0 0.0384" euler="0 0.3536 0"> <!-- X轴偏移 -->
+                <!-- <joint class="driver" name="jpf4" type="hinge" axis="0 1 0" range="-0.327 1.718"/> -->
+                <joint class="driver" name="jpf4" type="hinge" axis="0 1 0"/>
+                <geom class="visual" type="mesh" mesh="f4_mesh" material="black" xyaxes="0 0 1 1 0 0"/>
 
-              <!-- 固定关节末端 -->
-              <body name="pf5" pos="0 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
-                <geom class="visual" mesh="finger" material="black" pos="0.113 -0.019 -0.13" xyaxes="-1 0 0 0 0 1"/>
-                <body name="pf5_pad" pos="0.009 0 0.038" xyaxes="0 0 1 0 -1 0" gravcomp="1">
-                  <body name="pf5_pad_frame" pos="0 0 0" gravcomp="1">
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                <!-- 固定关节末端 -->
+                <body name="pf5" pos="0 0 0"> <!-- 根据我们的传感器确定的位置偏移 -->
+                  <geom class="visual" mesh="finger" material="black" pos="0.113 -0.019 -0.13" xyaxes="-1 0 0 0 0 1"/>
+                  <body name="pf5_pad" pos="0.009 0 0.038" xyaxes="0 0 1 0 -1 0" gravcomp="1">
+                    <body name="pf5_pad_frame" pos="0 0 0" gravcomp="1">
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                      <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                    </body>
+                    <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
+                    <include file="allegro/assets/tactile/pf5_pad_collisions.xml"/>
+                    <site name="pf5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                   </body>
-                  <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
-                  <include file="allegro/assets/tactile/pf5_pad_collisions.xml"/>
-                  <site name="pf5_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                 </body>
               </body>
             </body>
@@ -172,32 +190,15 @@
   </worldbody>
   
   <actuator>
-    <!-- 为所有可动关节添加执行器 -->
-    <motor joint="jth1" gear="10"/>
-    <motor joint="jth2" gear="10"/>
-    <motor joint="jth3" gear="10"/>
-    <motor joint="jth4" gear="10"/>
-
-    <motor joint="jif1" gear="10"/>
-    <motor joint="jif2" gear="10"/>
-    <motor joint="jif3" gear="10"/>
-    <motor joint="jif4" gear="10"/>
-
-    <motor joint="jmf1" gear="10"/>
-    <motor joint="jmf2" gear="10"/>
-    <motor joint="jmf3" gear="10"/>
-    <motor joint="jmf4" gear="10"/>
-
-    <motor joint="jpf1" gear="10"/>
-    <motor joint="jpf2" gear="10"/>
-    <motor joint="jpf3" gear="10"/>
-    <motor joint="jpf4" gear="10"/>
-
-    <velocity class="hand" name="velocity_x" joint="hand_base_joint_x" ctrlrange="-1 1" kv="100"/>
-    <velocity class="hand" name="velocity_y" joint="hand_base_joint_y" ctrlrange="-1 1" kv="100"/>
-    <velocity class="hand" name="velocity_z" joint="hand_base_joint_z" ctrlrange="-1 1" kv="100"/>
-    <velocity class="hand" name="velocity_pitch" joint="hand_base_joint_pitch" ctrlrange="-3.14159 3.14159" kv="100"/>
-    <velocity class="hand" name="velocity_roll" joint="hand_base_joint_roll" ctrlrange="-3.14159 3.14159" kv="100"/>
-    <velocity class="hand" name="velocity_yaw" joint="hand_base_joint_yaw" ctrlrange="-3.14159 3.14159" kv="100"/>
+    <velocity class="hand" name="velocity_x" joint="base_mount_joint_x" ctrlrange="-1 1" kv="100"/>
+    <velocity class="hand" name="velocity_y" joint="base_mount_joint_y" ctrlrange="-1 1" kv="100"/>
+    <velocity class="hand" name="velocity_z" joint="base_mount_joint_z" ctrlrange="-1 1" kv="100"/>
+    <velocity class="hand" name="velocity_pitch" joint="base_mount_joint_pitch" ctrlrange="-3.14159 3.14159" kv="100"/>
+    <velocity class="hand" name="velocity_roll" joint="base_mount_joint_roll" ctrlrange="-3.14159 3.14159" kv="100"/>
+    <velocity class="hand" name="velocity_yaw" joint="base_mount_joint_yaw" ctrlrange="-3.14159 3.14159" kv="100"/>
+    <motor joint="jth3" gear="1" ctrlrange="-1 1"/>
+    <motor joint="jif2" gear="1" ctrlrange="-1 1"/>
+    <motor joint="jmf2" gear="1" ctrlrange="-1 1"/>
+    <motor joint="jpf2" gear="1" ctrlrange="-1 1"/>
   </actuator>
 </mujoco>

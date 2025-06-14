@@ -28,7 +28,7 @@ class DexHandEnv(gym.Env):
         self.actuator_dict = {self.mj_model.actuator(i).name: i for i in range(self.mj_model.actuator_actnum.shape[0])}
         
         self.max_iter, self.pos_tolerane, self.velocity_tolerance, self.force_tolerance = 1000, 0.001, 0.001, 1  # Maximum iteration and error tolerance of position error
-        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(self.mj_model.actuator_actnum.shape[0],), dtype=np.float32)  # Action space is a 5D vector
+        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(self.mj_model.actuator_actnum.shape[0],), dtype=np.float32)  # Action space is a 7D vector
         self.observation_space = gym.spaces.Dict({
             "visual": gym.spaces.Box(low=0, high=255, shape=(3, 640, 480), dtype=np.uint8),
             "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),

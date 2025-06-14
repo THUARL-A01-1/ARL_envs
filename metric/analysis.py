@@ -3,8 +3,8 @@ import numpy as np
 import os
 
 
-# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
-ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
+ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+# ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 def load_results(OBJECT_ID):
     """
@@ -33,7 +33,7 @@ def load_results(OBJECT_ID):
     friction_threshold = 1.5
     mask = (our_metrics > 0) & (our_metrics < 0.999)\
     & (closure_metrics > 0) & (closure_metrics < 2)\
-    & (antipodal_metrics > 0) & (antipodal_metrics < 0.5)\
+    & (antipodal_metrics > 0) & (antipodal_metrics < 2)\
     & (distances > 0) & (distances < 1)\
     
     # 
@@ -178,14 +178,14 @@ def analyze_results(OBJECT_ID="all"):
     object_ids, grasp_ids, grasp_results, our_metrics, closure_metrics, antipodal_metrics, friction_coefs, distances, Fvs = load_results(OBJECT_ID)
     
     # Analyze classification
-    # analyze_classification_results(grasp_results, our_metrics)
+    analyze_classification_results(grasp_results, our_metrics)
     
     # Draw histogram
-    # draw_histogram(grasp_results, our_metrics, closure_metrics)
+    draw_histogram(grasp_results, our_metrics, closure_metrics)
     
     # Analyze correlation
-    # analyze_correlation(our_metrics, distances)
-    analyze_correlation_friction(object_ids, grasp_ids, our_metrics)
+    # analyze_correlation(our_metrics, closure_metrics)
+    # analyze_correlation_friction(object_ids, grasp_ids, our_metrics)
 
 
 if __name__ == "__main__":

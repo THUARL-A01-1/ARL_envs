@@ -15,8 +15,11 @@
         <default class="hand">
             <general biastype="affine"/>
             <joint axis="1 0 0"/>
+            <default class="mount">
+                <joint frictionloss="1" damping="10" range="-1 1"/>
+            </default>
             <default class="driver">
-                <joint type="hinge" range="0 0.055" stiffness="1" frictionloss="1" damping="10" limited="true"/>
+                <joint type="hinge" range="0 2" armature="0.01" damping="3" solimplimit="0.99 0.999 0.001" solreflimit="0.005"/>
             </default>
             <default class="visual"> 
                 <geom type="mesh" contype="0" conaffinity="0" group="2"/>

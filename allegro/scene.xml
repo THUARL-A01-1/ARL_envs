@@ -9,8 +9,8 @@
     </asset>
     <!-- The object -->
     <worldbody>
-        <body pos="0.13 0.0 0.0" gravcomp="1" xyaxes="0 0 1 0 1 0">
-            <joint name="object_joint" type="free" frictionloss="0.001" damping="0.001"/>
+        <body pos="0.0 0.0 0.0" gravcomp="1">
+            <joint name="object_joint" type="free" frictionloss="0.1" damping="0.1"/>
             <geom class="object" name="object" mesh="object" mass="0.1" material="white"/>
         </body>
     </worldbody>
