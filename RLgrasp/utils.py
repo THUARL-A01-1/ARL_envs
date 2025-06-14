@@ -4,6 +4,7 @@ import numpy as np
 import scipy.interpolate
 from scipy.sparse import coo_matrix, linalg
 from scipy.spatial import Delaunay
+from scipy.spatial.transform import Rotation as R
 import triangle
 
 def extract_contour(depth_image):
@@ -14,14 +15,16 @@ def extract_contour(depth_image):
     """
     # Find contours in the depth image
     try:
-        contours, _ = cv2.findContours((depth_image * 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        depth_uint8 = (depth_image * 255).astype(np.uint8)
+        _, binary = cv2.threshold(depth_uint8, 180, 255, cv2.THRESH_BINARY_INV)  # 50 可调整
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     except cv2.error as e:
         print(f"Error finding contours: {e}")
         return np.array([])
     
     # Select the largest contour
     contour = max(contours, key=cv2.contourArea)
-    contour = contour.squeeze() / 1000  # Scale down for processing
+    contour = contour.squeeze()
     
     # Resample the contour to 100 points
     # 计算弧长参数
@@ -36,14 +39,20 @@ def extract_contour(depth_image):
     # 对x和y分别插值
     fx = scipy.interpolate.interp1d(arc_lengths, contour[:,0], kind='linear', fill_value="extrapolate")
     fy = scipy.interpolate.interp1d(arc_lengths, contour[:,1], kind='linear', fill_value="extrapolate")
-    contour_interp = np.stack([-fx(uniform_dist), -fy(uniform_dist)], axis=1)
+    contour_interp = np.stack([fx(uniform_dist), fy(uniform_dist)], axis=1)
 
-    # 可视化检查
-    plt.plot(contour_interp[:,0], contour_interp[:,1])
-    plt.gca().invert_yaxis()
-    plt.axis('equal')
-    plt.title('Bunny Contour')
-    plt.show()
+    # # 可视化检查
+    # cv2.imshow('Contour', depth_uint8)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    # cv2.imshow('Contour', binary)
+    # cv2.waitKey(0) 
+    # cv2.destroyAllWindows()
+    # plt.plot(contour_interp[:,0], contour_interp[:,1])
+    # plt.gca().invert_yaxis()
+    # plt.axis('equal')
+    # plt.title('Bunny Contour')
+    # plt.show()
 
     return contour_interp
     
@@ -130,22 +139,44 @@ def inverse_mapping(uv, points, action_map):
     
     return mapped
 
-def transform_action(action, depth_image, approach_offset):
+def camera2world_mapping(u, v, depth):
+    """
+    Convert camera coordinates (u, v, depth) to world coordinates.
+    :param x: x coordinate in camera space.
+    :param y: y coordinate in camera space.
+    :param depth: depth value in camera space.
+    :return: A 3D numpy array representing the world coordinates.
+    """
+    # Calculate the camera intrinsic parameters
+    fovy, height, width = np.pi / 4, 480, 640
+    fy = height / (2 * np.tan(fovy / 2))
+    fx = fy * width / height
+    cx, cy = width / 2, height / 2
+    # Calculate the coordinates in the camera space
+    camera_pos = np.array([(u - cx) * (depth / fx), (v - cy) * (depth / fy), -depth])
+    # Convert to world coordinates
+    rot = R.from_quat([0.3827, 0, 0, 0.9239])  # [x, y, z, w]
+    target_pos = rot.apply(camera_pos) + np.array([0, -0.5, 0.5])
+    
+    return target_pos
+
+
+def transform_action(action, depth_image, hand_offset, approach_offset):
     """
     Transform the action into the target grasping position and rotation.
     1. Extract the object contour from the depth image.
     2. Calculate the harmonic transform of the object contour.
     3. Convert the polar coordinates (r, beta) to Cartesian coordinates (x, y) based on the inverse harmonic transform.
     4. Calculate the depth based on the depth image and depth factor.
-    5. Calcultate the target position.
+    5. Calcultate the grasp position.
     6. Calculate the approach vector based on the rotation angles (theta, phi).
     7. Calculate the approach position, target rotation, target position, and target force.
-    :param action: A 6D vector containing the grasping point and rotation parameters.
+    :param action: A 7D vector containing the grasping point and rotation parameters.
     :param depth_image: The depth image of the object.
     :param approach_offset: The offset distance from the grasp point to the approach position.
     :return: A tuple containing the approach position, target rotation, target position, and target force.
     """
-    r, beta, depth_factor, theta, phi, grasp_force = action
+    r, beta, depth_factor, theta, phi, alpha, grasp_force = action[0], action[1] * 2 * np.pi, action[2], action[3] * np.pi / 2, action[4] * 2 * np.pi, action[5] * 2 * np.pi, action[6] * 3.0
     
     # Step 1: Extract the object contour from the depth image
     # Normalize the depth image to [0, 1]
@@ -157,7 +188,7 @@ def transform_action(action, depth_image, approach_offset):
     segments = [(i, (i+1)%len(vertices)) for i in range(len(vertices))]
     
     # Step 2: Calculate the harmonic transform of the object contour
-    uv, points, tris = harmonic_mapping(vertices, segments, max_area=0.01)
+    uv, points, tris = harmonic_mapping(vertices, segments, max_area=10)
 
     # Step 3: Convert polar coordinates (r, beta) to Cartesian coordinates (x, y)
     action_map = np.array([[r * np.cos(beta), r * np.sin(beta)]])  # (1, 2)
@@ -165,34 +196,21 @@ def transform_action(action, depth_image, approach_offset):
 
     # Step 4: Calculate the depth based on the depth image and depth factor
     depth = min_depth + depth_factor * (max_depth - min_depth)
+    # TODO: The max_depth is not the real maximum depth of the object, it is the maximum depth of the depth image, debug it.
 
-    # Step 5: Calculate the target position based on the x-y coordinates and depth
-    target_pos = ?
+    # Step 5: Calculate the grasp position based on the x-y coordinates and depth
+    grasp_pos = camera2world_mapping(action_origin[0, 0], action_origin[0, 1], depth)
 
     # Step 6: Calculate the approach vector based on the rotation angles (theta, phi)
-    approach_vector = np.array([np.cos(theta) * np.cos(phi), np.cos(theta) * np.sin(phi), np.sin(theta)])
+    approach_vector = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
 
     # Step 7: Calculate the approach position, target rotation, target position, and target force
-    # Assuming r is the distance from the origin to the grasp point in polar coordinates
-    # Assuming beta is the angle in radians from the positive x-axis
- 
-    
-    
-    
-    # Convert r and beta to Cartesian coordinates
-    x = r * np.cos(beta)
-    y = r * np.sin(beta)
-    
-    # Calculate the depth based on the depth image
-    depth = np.clip(depth_factor * np.max(depth_image), 0.0, 1.0)
-    
-    # Calculate the approach position
-    approach_pos = np.array([x, y, depth + approach_offset])
-    
-    # Calculate the target rotation (assuming a simple rotation around z-axis)
-    target_rot = np.array([np.sin(theta / 2), 0, 0, np.cos(theta / 2)])  # Quaternion representation
-    
-    # Calculate the target position
-    target_pos = approach_pos + np.array([0, 0, -approach_offset])
+    target_pos = grasp_pos + approach_vector * hand_offset
+    approach_pos = grasp_pos + approach_vector * approach_offset
+
+    target_R_to_normal, _ = R.align_vectors([approach_vector], [[0, 0, 1]])
+    target_R_about_normal = R.from_rotvec(alpha * approach_vector)
+    rot = target_R_about_normal * target_R_to_normal
+    target_rot = rot.as_euler('XYZ', degrees=False)
     
     return approach_pos, target_rot, target_pos, grasp_force

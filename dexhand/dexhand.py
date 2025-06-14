@@ -9,7 +9,7 @@ import os
 import time
 
 class DexHandEnv(gym.Env):
-    def __init__(self, render_mode="rgb_array"):
+    def __init__(self, model_dir="dexhand", render_mode="rgb_array"):
         """
         DexHandEnv is an implementation of the DexHand + Tac3D engineed by Mujoco, with API formulated based on Gym.
         DexHandEnv supports the following important methods:
@@ -18,7 +18,7 @@ class DexHandEnv(gym.Env):
         - replay(): Replay the current snapshot or the whole episode.
         - close(): Close the environment and release resources.
         """
-        self.model_path = os.path.join('dexhand', 'scene.xml')
+        self.model_path = os.path.join(model_dir, "scene.xml")
         self.render_mode = render_mode
         with open(self.model_path,"r") as f:
             self.xml_content = f.read()
@@ -48,8 +48,10 @@ class DexHandEnv(gym.Env):
 
     def reset(self):
         self.mj_data.qpos[:] = 0  # Reset the joint positions to zero
+        self.mj_data.qpos[2] = 0.5  # Set the hand to a certain height
         self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
         self.episode_buffer = {"rgb": [], "depth": [], "tactile_left": [], "tactile_right": [], "joint": []}
+        mujoco.mj_step(self.mj_model, self.mj_data)  # Step the simulation to initialize the scene
         self.add_frame()  # Add the initial frame to the episode buffer
         return self.mj_renderer_rgb.render()
 
@@ -145,7 +147,7 @@ class DexHandEnv(gym.Env):
         rgb_frame = cv2.resize(rgb_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
         depth_frame = self.episode_buffer["depth"][frame_id]
         depth_frame = cv2.resize(depth_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
-        depth_frame = depth_frame.clip(0, 1)  # Clip depth values to [0, 1]
+        depth_frame = 1 - depth_frame.clip(0, 1)  # Clip depth values to [0, 1]
 
         depth_min = np.min(depth_frame)
         depth_max = np.max(depth_frame)
