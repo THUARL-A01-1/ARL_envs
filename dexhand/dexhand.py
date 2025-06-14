@@ -9,52 +9,57 @@ import os
 import time
 
 class DexHandEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, render_mode="rgb_array"):
         """
         DexHandEnv is an implementation of the DexHand + Tac3D engineed by Mujoco, with API formulated based on Gym.
         DexHandEnv supports the following important methods:
         - step(): Take an action coltrolled by velocity in position loop.
         - reset(): Reset the environment and return the initial observation.
-        - render(): Render the current snapshot or the whole episode.
+        - replay(): Replay the current snapshot or the whole episode.
         - close(): Close the environment and release resources.
         """
         self.model_path = os.path.join('dexhand', 'scene.xml')
+        self.render_mode = render_mode
         with open(self.model_path,"r") as f:
             self.xml_content = f.read()
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
-        self.mj_renderer = mujoco.Renderer(self.mj_model, 480, 640)
+        self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, 480, 640)
+        self.mj_renderer_depth = mujoco.Renderer(self.mj_model, 480, 640)
+        self.mj_renderer_depth._depth_rendering = True
+        self.mj_viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data) if self.render_mode == "human" else None
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}
         self.actuator_dict = {self.mj_model.actuator(i).name: i for i in range(self.mj_model.actuator_actnum.shape[0])}
         
         self.max_iter, self.pos_tolerane, self.velocity_tolerance, self.force_tolerance = 1000, 0.001, 0.001, 1  # Maximum iteration and error tolerance of position error
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(self.mj_model.actuator_actnum.shape[0],), dtype=np.float32)  # Action space is a 7D vector
         self.observation_space = gym.spaces.Dict({
-            "visual": gym.spaces.Box(low=0, high=255, shape=(3, 640, 480), dtype=np.uint8),
+            "rgb": gym.spaces.Box(low=0, high=255, shape=(3, 640, 480), dtype=np.uint8),
+            "depth": gym.spaces.Box(low=0, high=1, shape=(1, 640, 480), dtype=np.float32),  # Depth image is a single channel image
             "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
             "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
             "joint": gym.spaces.Box(low=-1, high=1, shape=self.mj_data.qpos.shape, dtype=np.float32)}  # joint: 15D = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
         )  # Observation space
         
-        self.episode_buffer = {"visual": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
+        self.episode_buffer = {"rgb": [], "depth": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
         self.episode_mode = "keyframe"  # Full mode for enhancing the display, keyframe mode for training
-        self.render_mode = "episode"  # snapshot mode for rendering the current frame, episode mode for rendering the whole episode
+        self.replay_mode = "episode"  # snapshot mode for replaying the current frame, episode mode for replaying the whole episode
         # self.reset()
 
     def reset(self):
-        del self.mj_model
-        del self.mj_data
-        gc.collect()
-        self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
-        self.mj_data = mujoco.MjData(self.mj_model)
-        self.episode_buffer = {"visual": [], "tactile_left": [], "tactile_right": [], "joint": []}
-        return self.mj_renderer.render()
+        self.mj_data.qpos[:] = 0  # Reset the joint positions to zero
+        self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
+        self.episode_buffer = {"rgb": [], "depth": [], "tactile_left": [], "tactile_right": [], "joint": []}
+        self.add_frame()  # Add the initial frame to the episode buffer
+        return self.mj_renderer_rgb.render()
 
     def add_frame(self):
-        self.mj_renderer.update_scene(self.mj_data, camera="main")
+        self.mj_renderer_rgb.update_scene(self.mj_data, camera="main")
+        self.mj_renderer_depth.update_scene(self.mj_data, camera="main")
         right_tactile = self.mj_data.sensordata[:1200].copy().reshape(3, 20, 20)
         left_tactile = self.mj_data.sensordata[1200:].copy().reshape(3, 20, 20)
-        self.episode_buffer["visual"].append(self.mj_renderer.render())
+        self.episode_buffer["rgb"].append(self.mj_renderer_rgb.render())
+        self.episode_buffer["depth"].append(self.mj_renderer_depth.render())
         self.episode_buffer["tactile_left"].append(left_tactile)
         self.episode_buffer["tactile_right"].append(right_tactile)
         self.episode_buffer["joint"].append(self.mj_data.qpos.copy())
@@ -79,30 +84,33 @@ class DexHandEnv(gym.Env):
             error_force = target_force - current_force
             self.mj_data.ctrl[6] = current_force + max(0.2, pow(iter/self.max_iter, 0.5)) * error_force
             mujoco.mj_step(self.mj_model, self.mj_data)
+            if self.render_mode == "human":
+                self.mj_viewer.sync()
             
             if self.episode_mode == "full" and iter % 50 == 0:  # Add frames every 50 iterations in full mode
-                print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
+                # print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
                 self.add_frame()
             if (not sleep) and np.linalg.norm(error_pos) < self.pos_tolerane and np.linalg.norm(velocity) < self.velocity_tolerance and abs(error_force) < self.force_tolerance:  # Break if the error is smaller than the tolerance
                 break
         
         if self.episode_mode == "keyframe":  # Only keep the last frame in keyframe mode
-            # print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
+            print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
             self.add_frame()
         
-        return self.get_observation(), self.get_reward(), self.get_done(), {}
+        return self.get_observation(), self.compute_reward(), self.is_done(), {}
     
     def get_observation(self):
         return {
-            "visual": self.episode_buffer["visual"][-1],
+            "rgb": self.episode_buffer["rgb"][-1],
+            "depth": self.episode_buffer["depth"][-1],
             "tactile_left": self.episode_buffer["tactile_left"][-1],
             "tactile_right": self.episode_buffer["tactile_right"][-1],
             "joint": self.episode_buffer["joint"][-1]}  # Return the last frame in the episode buffer
     
-    def get_reward(self):
+    def compute_reward(self):
         return 0
     
-    def get_done(self):
+    def is_done(self):
         return False
     
     def draw_tactile(self, tactile):
@@ -133,8 +141,24 @@ class DexHandEnv(gym.Env):
         Draw a specific frame in the episode buffer.
         :param frame_id: the index of the frame in the episode buffer.
         """
-        visual_frame = self.episode_buffer["visual"][frame_id]
-        visual_frame = cv2.resize(visual_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
+        rgb_frame = self.episode_buffer["rgb"][frame_id]
+        rgb_frame = cv2.resize(rgb_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
+        depth_frame = self.episode_buffer["depth"][frame_id]
+        depth_frame = cv2.resize(depth_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
+        depth_frame = depth_frame.clip(0, 1)  # Clip depth values to [0, 1]
+
+        depth_min = np.min(depth_frame)
+        depth_max = np.max(depth_frame)
+        # 防止除零
+        if depth_max > depth_min:
+            depth_norm = (depth_frame - depth_min) / (depth_max - depth_min)
+        else:
+            depth_norm = np.zeros_like(depth_frame)
+        depth_uint8 = (depth_norm * 255).astype(np.uint8)
+        
+        visual_frame = np.vstack((rgb_frame, np.repeat(np.expand_dims(depth_uint8, axis=-1), 3, axis=-1)))
+        visual_frame = cv2.cvtColor(visual_frame, cv2.COLOR_RGB2BGR)
+
         tactile_left_frame = self.draw_tactile(self.episode_buffer["tactile_left"][frame_id])
         tactile_right_frame = self.draw_tactile(self.episode_buffer["tactile_right"][frame_id])
         tactile_combined = np.hstack((tactile_left_frame, tactile_right_frame))
@@ -142,19 +166,19 @@ class DexHandEnv(gym.Env):
         
         return combined_frame
 
-    def render(self):
+    def replay(self):
         """
-        Render the current snapshot or the whole episode.
-        - snapshot mode: render the current snapshot.
-        - episode mode: render the whole episode.     
+        Replay the current snapshot or the whole episode.
+        - snapshot mode: replay the current snapshot.
+        - episode mode: replay the whole episode.     
         """
-        if self.render_mode == "snapshot":  # Render the current snapshot
+        if self.replay_mode == "snapshot":  # Replay the current snapshot
             frame = self.draw_frame(-1)
             cv2.imshow('simulation img', frame)
             cv2.waitKey(0)
-        elif self.render_mode == "episode":
+        elif self.replay_mode == "episode":
             video_frames = []
-            for frame_id in range(len(self.episode_buffer["visual"])):
+            for frame_id in range(len(self.episode_buffer["rgb"])):
                 frame = self.draw_frame(frame_id)
                 video_frames.append(frame)
             while True:

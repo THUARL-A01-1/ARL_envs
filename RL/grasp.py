@@ -30,7 +30,7 @@ class RLGraspEnv(DexHandEnv):
         The action is in the form of a 6D vector:
         1. r, beta (0 ~ 2 * pi): grasping point in the manifold of unit disk
         2. depth factor: the grasping point depth is among the min depth and the max depth of the object depth image.
-        3. theta (0 ~ pi), phi (0 ~ 2 * pi): the rotation angles of the approach vector
+        3. theta (0 ~ pi / 2), phi (0 ~ 2 * pi): the rotation angles of the approach vector
         4. grasp force (0 ~ 3): the force applied to the object during grasping.
         
         The action is conducted by three steps to avoiding the hand from being stuck in the object:
@@ -45,11 +45,11 @@ class RLGraspEnv(DexHandEnv):
         :return: A 5-item tuple containing the observation, reward, done flag, truncated flag and info dictionary.
         """
         approach_offset = 0.2  # The offset distance from the grasp point to the approach position
-        lift_height = 0.1
+        lift_height = 0.03
         current_pos = self.mj_data.qpos[:3].copy()
         current_rot = self.mj_data.qpos[3:7].copy()
 
-        depth_image = self.mj_data.sensordata[:640 * 480].reshape(480, 640)
+        depth_image = self.get_observation()["depth"]
         approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, approach_offset)
         
         # Step 1: Move to the target approach position
@@ -63,6 +63,14 @@ class RLGraspEnv(DexHandEnv):
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([target_force])]))
         # Step 5: Lift the object to a certain height
         super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([target_force])]))
+
+        observation = self.get_observation()
+        reward = self.compute_reward(observation)
+        done = self.is_done(observation)
+        truncated = False
+        info = {}
+
+
 
 
 

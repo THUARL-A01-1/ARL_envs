@@ -95,16 +95,16 @@ def post_grasp(env):
     
 def test_env():
     # initialize the environment
-    env = DexHandEnv()
+    env = DexHandEnv(render_mode="rgb_array")
     _ = env.reset()
     rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
     rotation_right, rotation_left = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])
     geom_idx = [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]
 
     # pre-grasp the object
-    env.mj_data.qpos[0:3] = np.array([0, 0.1, 0.15])
-    env.mj_data.qpos[3:6] = np.array([0, 0, 0])  # reset the rotation of the hand
-    env.step(np.array([0, 0, 0, 0, 0, 0, 0]))
+    # env.mj_data.qpos[0:3] = np.array([0, 0.1, 0.15])
+    # env.mj_data.qpos[3:6] = np.array([0, 0, 0])  # reset the rotation of the hand
+    env.step(np.array([0, 0, 0.1, 0, 0, 0, 0]))
     
     
     # grasp the object
@@ -155,8 +155,8 @@ def test_env():
     print(f"Fv: {Fv}")
     print(f"Contact Success: {contact_success}, Grasp Success: {grasp_success}")
 
-    env.render()
+    env.replay()
 
 if __name__ == '__main__':
-    # test_env()
-    test_in_GUI()
+    test_env()
+    # test_in_GUI()
