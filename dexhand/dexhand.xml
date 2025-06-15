@@ -22,9 +22,9 @@
                 <geom class="visual" mesh="hand_base" pos="-0.081 0 -0.035" material="white"/>
                 <!-- <geom class="collision" mesh="hand_base" pos="-0.081 0 -0.035"/> -->
                 <body name="hand_frame" pos="0 0 0" gravcomp="1">
-                    <geom class="visual" type="cylinder" size="0.003 0.03" pos="0.03 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.003 0.03" pos="0 0 -0.03" zaxis="0 0 1" rgba="0 1 0 1"/>
-                    <geom class="visual" type="cylinder" size="0.003 0.03" pos="0 0.03 0" zaxis="0 1 0" rgba="0 0 1 1"/>
+                    <site class="visual" type="cylinder" size="0.003 0.03" pos="0.03 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                    <site class="visual" type="cylinder" size="0.003 0.03" pos="0 0 -0.03" zaxis="0 0 1" rgba="0 1 0 1"/>
+                    <site class="visual" type="cylinder" size="0.003 0.03" pos="0 0.03 0" zaxis="0 1 0" rgba="0 0 1 1"/>
                 </body>
                 <!-- left driver and finger -->
                 <body name="left_driver" pos="-0.039 0.001 -0.0185" gravcomp="1">
@@ -36,9 +36,9 @@
                         <!-- <geom class="collision" mesh="finger"/> -->
                         <body name="left_pad" pos="0.105 0.168 0.019" xyaxes="0 1 0 0 0 -1" gravcomp="1">
                             <body name="left_pad_frame" pos="0 0 0" gravcomp="1">
-                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
-                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
-                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                                <site class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                                <site class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                                <site class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
                             </body>
                             <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
                             <!-- <geom class="pad" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/> -->
@@ -57,9 +57,9 @@
                         <!-- <geom class="collision" mesh="finger"/> -->
                         <body name="right_pad" pos="0.105 0.168 0.019" xyaxes="0 1 0 0 0 -1" gravcomp="1">
                             <body name="right_pad_frame" pos="0 0 0" gravcomp="1">
-                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
-                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
-                                <geom class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
+                                <site class="visual" type="cylinder" size="0.001 0.01" pos="0.01 0 0" zaxis="1 0 0" rgba="1 0 0 1"/>
+                                <site class="visual" type="cylinder" size="0.001 0.01" pos="0 0.01 0" zaxis="0 1 0" rgba="0 1 0 1"/>
+                                <site class="visual" type="cylinder" size="0.001 0.01" pos="0 0 0.01" rgba="0 0 1 1"/>
                             </body>
                             <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
                             <!-- <geom class="pad" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/> -->

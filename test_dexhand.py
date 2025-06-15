@@ -95,7 +95,7 @@ def post_grasp(env):
     
 def test_env():
     # initialize the environment
-    env = DexHandEnv(render_mode="human")
+    env = DexHandEnv(render_mode="rgb_array")
     _ = env.reset()
     rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
     rotation_right, rotation_left = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]]), np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]])

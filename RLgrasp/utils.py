@@ -16,7 +16,7 @@ def extract_contour(depth_image):
     # Find contours in the depth image
     try:
         depth_uint8 = (depth_image * 255).astype(np.uint8)
-        _, binary = cv2.threshold(depth_uint8, 180, 255, cv2.THRESH_BINARY_INV)  # 50 可调整
+        _, binary = cv2.threshold(depth_uint8, 220, 255, cv2.THRESH_BINARY_INV)  # 50 可调整
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     except cv2.error as e:
         print(f"Error finding contours: {e}")
@@ -139,6 +139,34 @@ def inverse_mapping(uv, points, action_map):
     
     return mapped
 
+def visualize_mapping(uv, points, tris, samples_disk, samples_orig):
+    """    
+    Visualize the mapping from the original shape to the unit disk.
+    :param uv: (N, 2) coordinates in the unit disk.
+    :param points: (N, 2) coordinates in the original shape.
+    :param tris: (M, 3) indices of the triangles in the original shape.
+    :param samples_disk: (n, 2) sampled points in the unit disk.
+    :param samples_orig: (n, 2) sampled points in the original shape.
+    """
+    plt.figure(figsize=(12, 5))
+    plt.subplot(121)
+    plt.plot(points[:,0], points[:,1], 'k.', alpha=0.2)
+    plt.triplot(points[:,0], points[:,1], tris, color='gray', alpha=0.2)
+
+    plt.scatter(samples_orig[:, 0], samples_orig[:, 1], s=30, label='Sampled')
+    plt.title("Samples in Original Shape")
+    plt.legend()
+
+    plt.subplot(122)
+    plt.gca().set_aspect('equal')
+    plt.plot(uv[:,0], uv[:,1], 'k.', alpha=0.2)
+    plt.triplot(uv[:,0], uv[:,1], tris, color='gray', alpha=0.2)
+    plt.scatter(samples_disk[:,0], samples_disk[:,1], s=30, label='Sampled')
+    plt.title("Samples in Unit Disk")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
 def camera2world_mapping(u, v, depth):
     """
     Convert camera coordinates (u, v, depth) to world coordinates.
@@ -150,18 +178,19 @@ def camera2world_mapping(u, v, depth):
     # Calculate the camera intrinsic parameters
     fovy, height, width = np.pi / 4, 480, 640
     fy = height / (2 * np.tan(fovy / 2))
-    fx = fy * width / height
+    fx = 571# fy * width / height
     cx, cy = width / 2, height / 2
     # Calculate the coordinates in the camera space
-    camera_pos = np.array([(u - cx) * (depth / fx), (v - cy) * (depth / fy), -depth])
+    camera_pos = np.array([(u - cx) * (depth / fx), (v - cy) * (depth / fy), depth])
     # Convert to world coordinates
-    rot = R.from_quat([0.3827, 0, 0, 0.9239])  # [x, y, z, w]
-    target_pos = rot.apply(camera_pos) + np.array([0, -0.5, 0.5])
+    rot = R.from_quat([-0.3827, 0, 0, 0.9239])  # [x, y, z, w]
+    target_pos = rot.inv().apply(camera_pos) - np.array([0, -0.5, 0.5])
+    target_pos[1:] = -target_pos[1:]  # Invert y and z coordinates to match the world coordinate system
     
     return target_pos
 
 
-def transform_action(action, depth_image, hand_offset, approach_offset):
+def transform_action(action, depth_image, segmentation_mask, hand_offset, approach_offset):
     """
     Transform the action into the target grasping position and rotation.
     1. Extract the object contour from the depth image.
@@ -173,6 +202,8 @@ def transform_action(action, depth_image, hand_offset, approach_offset):
     7. Calculate the approach position, target rotation, target position, and target force.
     :param action: A 7D vector containing the grasping point and rotation parameters.
     :param depth_image: The depth image of the object.
+    :param segmentation_mask: The segmentation mask of the object in the depth image.
+    :param hand_offset: The offset distance from the grasp point to the target position.
     :param approach_offset: The offset distance from the grasp point to the approach position.
     :return: A tuple containing the approach position, target rotation, target position, and target force.
     """
@@ -180,9 +211,8 @@ def transform_action(action, depth_image, hand_offset, approach_offset):
     
     # Step 1: Extract the object contour from the depth image
     # Normalize the depth image to [0, 1]
-    depth_image = np.clip(depth_image, 0.0, 1.0)
-    min_depth, max_depth = np.min(depth_image), np.max(depth_image)
-    depth_image = depth_image / np.max(depth_image)
+    depth_image[segmentation_mask == 0] = 1.0  # Set the background depth to 1.0
+    min_depth, max_depth = np.min(depth_image[segmentation_mask != 0]), np.max(depth_image[segmentation_mask != 0])
     contour = extract_contour(depth_image)
     vertices = contour
     segments = [(i, (i+1)%len(vertices)) for i in range(len(vertices))]
@@ -193,13 +223,15 @@ def transform_action(action, depth_image, hand_offset, approach_offset):
     # Step 3: Convert polar coordinates (r, beta) to Cartesian coordinates (x, y)
     action_map = np.array([[r * np.cos(beta), r * np.sin(beta)]])  # (1, 2)
     action_origin = inverse_mapping(uv, points, action_map)
+    # visualize_mapping(uv, points, tris, action_map, action_origin)
 
     # Step 4: Calculate the depth based on the depth image and depth factor
     depth = min_depth + depth_factor * (max_depth - min_depth)
-    # TODO: The max_depth is not the real maximum depth of the object, it is the maximum depth of the depth image, debug it.
 
     # Step 5: Calculate the grasp position based on the x-y coordinates and depth
     grasp_pos = camera2world_mapping(action_origin[0, 0], action_origin[0, 1], depth)
+    print(f"action and depth: {action_origin}, {depth}")
+    print(f"Grasp position: {grasp_pos}")
 
     # Step 6: Calculate the approach vector based on the rotation angles (theta, phi)
     approach_vector = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])

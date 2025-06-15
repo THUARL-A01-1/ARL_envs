@@ -29,7 +29,7 @@ class RLGraspEnv(DexHandEnv):
         """
         The action is in the form of a 6D vector:
         1. r, beta (0 ~ 2 * pi): grasping point in the manifold of unit disk
-        2. depth factor: the grasping point depth is among the min depth and the max depth of the object depth image.
+        2. depth factor (0 ~ 1): the grasping point depth is among the min depth and the max depth of the object depth image.
         3. theta (0 ~ pi / 2), phi (0 ~ 2 * pi), alpha (0 ~ 2 * pi): the rotation angles of the approach vector
         4. grasp force (0 ~ 3): the force applied to the object during grasping.
         
@@ -44,18 +44,20 @@ class RLGraspEnv(DexHandEnv):
 
         :return: A 5-item tuple containing the observation, reward, done flag, truncated flag and info dictionary.
         """
-        hand_offsest = 0.035
+        hand_offsest = 0.165 + 0.01
         approach_offset = 0.4  # The offset distance from the grasp point to the approach position
         lift_height = 0.03
 
+        # get the depth_image with object segmentation mask.
+        super().step(np.zeros(7), sleep=True)  # wait for the object to drop on the floor
         depth_image = self.get_observation()["depth"]
-        approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, hand_offsest, approach_offset)
+        segmentation_mask = self.get_observation()["segmentation"][..., 0]
+        approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
         
         # Step 1: Set the target approach position and target rotation
         self.mj_data.qpos[0:3] = approach_pos
         self.mj_data.qpos[3:6] = target_rot
         self.mj_data.qvel[:] = 0.0
-        super().step(np.zeros(7), sleep=True)  # wait for the object to drop on the floor
         # Step 2: Move to the target grasp position
         super().step(np.concatenate([target_pos - approach_pos, np.zeros(3), np.zeros(1)]))
         # Step 3: Apply the grasping force to the object
