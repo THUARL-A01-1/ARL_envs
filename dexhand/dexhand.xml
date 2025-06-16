@@ -28,7 +28,7 @@
                 </body>
                 <!-- left driver and finger -->
                 <body name="left_driver" pos="-0.039 0.001 -0.0185" gravcomp="1">
-                    <joint name="left_driver_joint" class="driver" axis="-1 0 0"/>
+                    <joint name="left_driver_joint" class="driver" axis="-1 0 0" range="0 0.052"/>
                     <geom class="visual" mesh="driver" material="black"/>
                     <!-- <geom class="collision" mesh="driver"/> -->
                     <body name="left_finger" pos="0 0 0" gravcomp="1">
@@ -49,7 +49,7 @@
                 </body>
                 <!-- right driver and finger -->
                 <body name="right_driver" pos="0.039 0.001 0.0195" xyaxes="-1 0 0 0 1 0" gravcomp="1">
-                    <joint name="right_driver_joint" class="driver" axis="-1 0 0"/>
+                    <joint name="right_driver_joint" class="driver" axis="-1 0 0" range="0 0.052"/>
                     <geom class="visual" mesh="driver" material="metal"/>
                     <!-- <geom class="collision" mesh="driver"/> -->
                     <body name="right_finger" pos="0 0 0" gravcomp="1">

@@ -71,7 +71,7 @@ class DexHandEnv(gym.Env):
         self.episode_buffer["tactile_right"].append(right_tactile)
         self.episode_buffer["joint"].append(self.mj_data.qpos.copy())
 
-    def step(self, action, sleep=False):
+    def step(self, action, sleep=False, add_frame=False):
         """
         Take an action by position control in velocity loop, with a PD controller.
         :param 
@@ -94,13 +94,13 @@ class DexHandEnv(gym.Env):
             if self.render_mode == "human":
                 self.mj_viewer.sync()
             
-            if self.episode_mode == "full" and iter % 50 == 0:  # Add frames every 50 iterations in full mode
+            if self.episode_mode == "full" and iter % 50 == 0 and add_frame:  # Add frames every 50 iterations in full mode
                 # print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
                 self.add_frame()
             if (not sleep) and np.linalg.norm(error_pos) < self.pos_tolerane and np.linalg.norm(velocity) < self.velocity_tolerance and abs(error_force) < self.force_tolerance:  # Break if the error is smaller than the tolerance
                 break
         
-        if self.episode_mode == "keyframe":  # Only keep the last frame in keyframe mode
+        if self.episode_mode == "keyframe" and add_frame:  # Only keep the last frame in keyframe mode
             # print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
             self.add_frame()
         
