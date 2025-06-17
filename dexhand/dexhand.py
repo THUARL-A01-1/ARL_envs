@@ -3,6 +3,7 @@ import gc
 import gymnasium as gym
 from io import BytesIO
 import mujoco
+import mujoco.viewer
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -24,21 +25,21 @@ class DexHandEnv(gym.Env):
             self.xml_content = f.read()
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
-        self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, 480, 640)
-        self.mj_renderer_depth = mujoco.Renderer(self.mj_model, 480, 640)
+        self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, 512, 512)
+        self.mj_renderer_depth = mujoco.Renderer(self.mj_model, 512, 512)
         self.mj_renderer_depth._depth_rendering = True
-        self.mj_renderer_segmentation = mujoco.Renderer(self.mj_model, 480, 640)
+        self.mj_renderer_segmentation = mujoco.Renderer(self.mj_model, 512, 512)
         self.mj_renderer_segmentation._segmentation_rendering = True
         self.mj_viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data) if self.render_mode == "human" else None
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}
         self.actuator_dict = {self.mj_model.actuator(i).name: i for i in range(self.mj_model.actuator_actnum.shape[0])}
         
         self.max_iter, self.pos_tolerane, self.velocity_tolerance, self.force_tolerance = 1000, 0.001, 0.001, 1  # Maximum iteration and error tolerance of position error
-        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(self.mj_model.actuator_actnum.shape[0],), dtype=np.float32)  # Action space is a 7D vector
+        self.action_space = gym.spaces.Box(low=0, high=1, shape=(self.mj_model.actuator_actnum.shape[0],), dtype=np.float32)  # Action space is a 7D vector
         self.observation_space = gym.spaces.Dict({
-            "rgb": gym.spaces.Box(low=0, high=255, shape=(3, 640, 480), dtype=np.uint8),
-            "depth": gym.spaces.Box(low=0, high=1, shape=(1, 640, 480), dtype=np.float32),  # Depth image is a single channel image
-            "segmentation": gym.spaces.Box(low=0, high=255, shape=(2, 640, 480), dtype=np.uint8),  # Segmentation image is a single channel image
+            "rgb": gym.spaces.Box(low=0, high=255, shape=(3, 512, 512), dtype=np.uint8),
+            "depth": gym.spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),  # Depth image is a single channel image
+            "segmentation": gym.spaces.Box(low=0, high=255, shape=(2, 512, 512), dtype=np.uint8),  # Segmentation image is a single channel image
             "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
             "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
             "joint": gym.spaces.Box(low=-1, high=1, shape=self.mj_data.qpos.shape, dtype=np.float32)}  # joint: 15D = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
@@ -50,9 +51,6 @@ class DexHandEnv(gym.Env):
         # self.reset()
 
     def reset(self):
-        self.mj_data.qpos[:] = 0  # Reset the joint positions to zero
-        self.mj_data.qpos[2] = 0.5  # Set the hand to a certain height
-        self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
         self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}
         mujoco.mj_step(self.mj_model, self.mj_data)  # Step the simulation to initialize the scene
         self.add_frame()  # Add the initial frame to the episode buffer
@@ -62,11 +60,17 @@ class DexHandEnv(gym.Env):
         self.mj_renderer_rgb.update_scene(self.mj_data, camera="main")
         self.mj_renderer_depth.update_scene(self.mj_data, camera="main")
         self.mj_renderer_segmentation.update_scene(self.mj_data, camera="main")
+        
         right_tactile = self.mj_data.sensordata[:1200].copy().reshape(3, 20, 20)
         left_tactile = self.mj_data.sensordata[1200:].copy().reshape(3, 20, 20)
-        self.episode_buffer["rgb"].append(self.mj_renderer_rgb.render())
-        self.episode_buffer["depth"].append(self.mj_renderer_depth.render())
-        self.episode_buffer["segmentation"].append(self.mj_renderer_segmentation.render())
+        
+        self.episode_buffer["rgb"].append(self.mj_renderer_rgb.render().transpose(2, 0, 1))
+        self.episode_buffer["depth"].append(np.expand_dims(self.mj_renderer_depth.render(), axis=0))
+        try:
+            self.episode_buffer["segmentation"].append(self.mj_renderer_segmentation.render().transpose(2, 0, 1))
+        except IndexError as e:
+            print(f"Segmentation rendering failed: {e}")
+            self.episode_buffer["segmentation"].append(np.zeros((2, 512, 512), dtype=np.uint8))
         self.episode_buffer["tactile_left"].append(left_tactile)
         self.episode_buffer["tactile_right"].append(right_tactile)
         self.episode_buffer["joint"].append(self.mj_data.qpos.copy())
@@ -149,11 +153,11 @@ class DexHandEnv(gym.Env):
         Draw a specific frame in the episode buffer.
         :param frame_id: the index of the frame in the episode buffer.
         """
-        rgb_frame = self.episode_buffer["rgb"][frame_id]
+        rgb_frame = self.episode_buffer["rgb"][frame_id].transpose(1, 2, 0)
         rgb_frame = cv2.resize(rgb_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
-        segmentation_frame = self.episode_buffer["segmentation"][frame_id].astype(np.uint8)
+        segmentation_frame = self.episode_buffer["segmentation"][frame_id].astype(np.uint8).transpose(1, 2, 0)
         segmentation_frame = cv2.resize(segmentation_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
-        depth_frame = self.episode_buffer["depth"][frame_id]
+        depth_frame = self.episode_buffer["depth"][frame_id].transpose(1, 2, 0)
         depth_frame = cv2.resize(depth_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
         depth_frame = 1 - depth_frame.clip(0, 1)  # Clip depth values to [0, 1]
 

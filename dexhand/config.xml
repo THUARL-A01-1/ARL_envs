@@ -16,7 +16,7 @@
             <general biastype="affine"/>
             <joint axis="1 0 0"/>
             <default class="driver">
-                <joint type="slide" range="0 0.055" armature="0.01" damping="20" solimplimit="0.95 0.99 0.001" solreflimit="0.005"/>
+                <joint type="slide" range="0 0.055" armature="0.01" damping="2" solimplimit="0.95 0.99 0.001" solreflimit="0.005"/>
             </default>
             <default class="visual"> 
                 <geom type="mesh" contype="0" conaffinity="0" group="2"/>

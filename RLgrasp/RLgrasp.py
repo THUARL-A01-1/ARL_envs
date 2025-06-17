@@ -15,7 +15,7 @@ import metric.metrics as metrics
 import RLgrasp.utils as utils
 
 class RLGraspEnv(DexHandEnv):
-    def __init__(self):
+    def __init__(self, render_mode="rgb_array"):
         """
         RLGraspEnv is an implementation of the DexHandEnv + RL API + multiobject scene engineed by Mujoco, with API formulated based on Gym.
         RLGraspEnv rewrites the following important methods:
@@ -24,23 +24,24 @@ class RLGraspEnv(DexHandEnv):
         - compute_reward(): Calculate the reward based on the contact state of the object.
         - reset(): Resample the object posture and grasping scene.
         """
-        super().__init__(model_dir="RLgrasp", render_mode="human")
-        self.observation_space = spaces.Dict({
-            "history_observation": spaces.Dict({
-                "depth": spaces.Box(low=0, high=1, shape=(640, 480, 3), dtype=np.float32),
-                "action": spaces.Box(low=-1, high=1, shape=(7, ), dtype=np.float32),
-            }),
-            "current_observation": spaces.Box(low=0, high=1, shape=(640, 480,), dtype=np.float32)
-        })
+        super().__init__(model_dir="RLgrasp", render_mode=render_mode)
+        # self.observation_space = spaces.Dict({
+        #     "history_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),
+        #     "history_action": spaces.Box(low=-1, high=1, shape=(7, ), dtype=np.float32),
+        #     "current_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32)})
+        self.observation_space = spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32)
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 10  # Maximum number of attempts to grasp the object
         
-    def reset(self):
+    def reset(self, seed=None, options=None):
         _ = super().reset()
         self.action_buffer = []  # Clear the action history buffer
+        self.mj_data.qpos[:] = 0  # Reset the joint positions to zero
+        self.mj_data.qpos[2] = 0.5  # Set the hand to a certain height
+        self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
         super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
 
-        return self.get_observation()
+        return self.get_observation(), {}
     
     def step(self, action):
         """
@@ -61,14 +62,19 @@ class RLGraspEnv(DexHandEnv):
 
         :return: A 5-item tuple containing the observation, reward, done flag, truncated flag and info dictionary.
         """
-        hand_offsest = 0.165 + 0.01  # 0.01 for more stable grasping
+        hand_offsest = 0.165 - 0.0001  # 0.01 for more stable grasping
         approach_offset = 0.4  # The offset distance from the grasp point to the approach position
         lift_height = 0.03
 
         # Step 0: get the depth_image with object segmentation mask.
-        depth_image = self.episode_buffer["depth"][-1]
-        segmentation_mask = self.episode_buffer["segmentation"][-1][..., 0]
-        approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
+        self.action_buffer.append(action)
+        depth_image = self.episode_buffer["depth"][-1][0, ...]
+        segmentation_mask = self.episode_buffer["segmentation"][-1][0, ...]  # Use the first channel of the segmentation mask
+        try:
+            approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
+        except RuntimeError as e:  # If the object is not in the FOV, then action is invalid. To avoid the simulation interrupting, we return a negative reward.
+            print(f"Error in transforming action: {e}")
+            return self.get_observation(), -1.0 * self.max_attempts, True, True, {}
         
         # Step 1: Set the target approach position and target rotation
         self.mj_data.qpos[0:3] = approach_pos
@@ -79,7 +85,7 @@ class RLGraspEnv(DexHandEnv):
         # Step 3: Apply the grasping force to the object
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([target_force])]))
         # Step 4: Lift the object to a certain height
-        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([target_force])]), add_frame=True)
+        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([5.0])]), add_frame=True)
 
         # calculate the relative feedback
         reward, done, truncated = self.compute_reward()
@@ -96,6 +102,8 @@ class RLGraspEnv(DexHandEnv):
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([-10])]))
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
         observation = self.get_observation()
+
+        print(f"reward: {reward}, done: {done}, truncated: {truncated}")
         
         return observation, reward, done, truncated, info
         
@@ -107,12 +115,9 @@ class RLGraspEnv(DexHandEnv):
         After the Nth attempt, the length of the episode buffer is 2N + 1, and the length of the action history is N.
         :return: A dictionary with the length of N + 1. N represent the history information, and 1 is the current visual information.
         """
-        history_observation = {"depth":self.episode_buffer["depth"][1:-1:2], 
-                               "action":self.action_buffer}
-        current_observation = self.episode_buffer["depth"][-1]
+        observation = {"history_depth":np.array(self.episode_buffer["depth"][1:-1:2]), "history_action":np.array(self.action_buffer), "current_depth":np.array(self.episode_buffer["depth"][-1])}
 
-        return {"history_observation": history_observation, 
-                "current_observation": current_observation}
+        return observation["current_depth"]
 
 
     def compute_reward(self):
@@ -130,7 +135,7 @@ class RLGraspEnv(DexHandEnv):
         else:
             reward = 0.0
         
-        truncated = len(self.episode_buffer["rgb"]) >= 2 * self.max_attempts
+        truncated = len(self.episode_buffer["rgb"]) >= 2 * self.max_attempts + 2
         done = (reward == 0.0) or truncated
         
         return reward, done, truncated

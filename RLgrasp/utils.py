@@ -176,7 +176,7 @@ def camera2world_mapping(u, v, depth):
     :return: A 3D numpy array representing the world coordinates.
     """
     # Calculate the camera intrinsic parameters
-    fovy, height, width = np.pi / 4, 480, 640
+    fovy, height, width = np.pi / 4, 512, 512
     fy = height / (2 * np.tan(fovy / 2))
     fx = 571# fy * width / height
     cx, cy = width / 2, height / 2
@@ -230,8 +230,8 @@ def transform_action(action, depth_image, segmentation_mask, hand_offset, approa
 
     # Step 5: Calculate the grasp position based on the x-y coordinates and depth
     grasp_pos = camera2world_mapping(action_origin[0, 0], action_origin[0, 1], depth)
-    print(f"action and depth: {action_origin}, {depth}")
-    print(f"Grasp position: {grasp_pos}")
+    # print(f"action and depth: {action_origin}, {depth}")
+    # print(f"Grasp position: {grasp_pos}")
 
     # Step 6: Calculate the approach vector based on the rotation angles (theta, phi)
     approach_vector = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])

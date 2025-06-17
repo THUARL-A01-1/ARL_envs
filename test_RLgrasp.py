@@ -3,7 +3,7 @@ from mujoco import viewer
 import numpy as np
 from RLgrasp.RLgrasp import RLGraspEnv
 
-env = RLGraspEnv()
+env = RLGraspEnv(render_mode="human")
 _ = env.reset()
 for i in range(10):
     sample_action = env.action_space.sample()
@@ -16,5 +16,4 @@ for i in range(10):
     sample_action[6] = 5.0
     print(f"Sampled action {i+1}: {sample_action}")
     observation, reward, done, truncated, info = env.step(sample_action)
-    print(f"reward: {reward}, done: {done}, truncated: {truncated}")
 # env.replay()

@@ -12,7 +12,7 @@
     <visual>
         <headlight diffuse="0.6 0.6 0.6" ambient="0.6 0.6 0.6" specular="0 0 0"/>
         <rgba haze="0.15 0.25 0.35 1"/>
-        <global azimuth="60" elevation="-20"/>
+        <global azimuth="60" elevation="-20" offheight="512"/>
     </visual>
     <worldbody>
         <light pos="0.707 0.707 0.5" dir="-0.707 -0.707 -0.5" diffuse="0.02 0.02 0.02" directional="true"/>
