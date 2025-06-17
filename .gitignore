@@ -2,4 +2,5 @@
 **/results/
 **/assets/
 **/__pycache__/
+**/logs/
 /MUJOCO_LOG.TXT

@@ -72,7 +72,7 @@ class RLGraspEnv(DexHandEnv):
         segmentation_mask = self.episode_buffer["segmentation"][-1][0, ...]  # Use the first channel of the segmentation mask
         try:
             approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
-        except RuntimeError as e:  # If the object is not in the FOV, then action is invalid. To avoid the simulation interrupting, we return a negative reward.
+        except Exception as e:  # If the object is not in the FOV, then action is invalid. To avoid the simulation interrupting, we return a negative reward.
             print(f"Error in transforming action: {e}")
             return self.get_observation(), -1.0 * self.max_attempts, True, True, {}
         

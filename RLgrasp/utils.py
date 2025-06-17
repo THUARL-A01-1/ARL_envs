@@ -14,13 +14,9 @@ def extract_contour(depth_image):
     :return: A 2D numpy array of contour points.
     """
     # Find contours in the depth image
-    try:
-        depth_uint8 = (depth_image * 255).astype(np.uint8)
-        _, binary = cv2.threshold(depth_uint8, 220, 255, cv2.THRESH_BINARY_INV)  # 50 可调整
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    except cv2.error as e:
-        print(f"Error finding contours: {e}")
-        return np.array([])
+    depth_uint8 = (depth_image * 255).astype(np.uint8)
+    _, binary = cv2.threshold(depth_uint8, 220, 255, cv2.THRESH_BINARY_INV)  # 50 可调整
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     # Select the largest contour
     contour = max(contours, key=cv2.contourArea)
