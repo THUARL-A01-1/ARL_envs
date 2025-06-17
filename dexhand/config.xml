@@ -1,7 +1,7 @@
 <mujoco>
     <!-- default order: name, class, type, size, pos, quat, rgba -->
     <size memory="100M"/>
-    <compiler angle="radian" meshdir="dexhand/assets/visual" autolimits="true"/>
+    <compiler angle="radian" autolimits="true"/>
     <option timestep="0.0005" gravity="0 0 -9.81" cone="elliptic" impratio="10" integrator="implicitfast"/>
     <extension>
         <plugin plugin="mujoco.sensor.touch_grid"/>

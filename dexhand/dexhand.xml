@@ -1,10 +1,10 @@
 <mujoco>
     <!-- The mesh assets -->
     <asset>
-        <mesh class="dexhand" file="dexhand_base.obj" name="hand_base"/>
-        <mesh class="dexhand" file="driver.obj" name="driver"/>
-        <mesh class="dexhand" file="tac3d.obj" name="finger"/>
-        <mesh class="dexhand" file="pad.obj" name="pad"/>
+        <mesh class="dexhand" file="dexhand/assets/visual/dexhand_base.obj" name="hand_base"/>
+        <mesh class="dexhand" file="dexhand/assets/visual/driver.obj" name="driver"/>
+        <mesh class="dexhand" file="dexhand/assets/visual/tac3d.obj" name="finger"/>
+        <mesh class="dexhand" file="dexhand/assets/visual/pad.obj" name="pad"/>
     </asset>
         <!-- The robot -->
     <worldbody>

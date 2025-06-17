@@ -10,11 +10,11 @@ def contact_labels(env):
     Returns: bool: True if the object is in contact, False otherwise.
     """
     finger_geom_idx_list = [[mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)], [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]]
-    object_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "object")
+    object_idx_list = [i for i in range(env.mj_model.ngeom) if env.mj_model.geom_bodyid[i] == mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "composite_object")]
     contact_hand = False
     for i in range(env.mj_data.ncon):  # 遍历接触对，判断物体是否与手指接触
         geom_id1, geom_id2 = env.mj_data.contact[i].geom1, env.mj_data.contact[i].geom2
-        if (geom_id1 == object_id and any(geom_id2 in sublist for sublist in finger_geom_idx_list)) or (geom_id2 == object_id and any(geom_id1 in sublist for sublist in finger_geom_idx_list)):
+        if ((geom_id1 in object_idx_list) and any(geom_id2 in sublist for sublist in finger_geom_idx_list)) or ((geom_id2 in object_idx_list) and any(geom_id1 in sublist for sublist in finger_geom_idx_list)):
             contact_hand = True
             break
 
