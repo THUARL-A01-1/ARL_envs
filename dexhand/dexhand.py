@@ -10,7 +10,7 @@ import os
 import time
 
 class DexHandEnv(gym.Env):
-    def __init__(self, model_dir="dexhand", render_mode="rgb_array"):
+    def __init__(self, model_path="dexhand/scene.xml", render_mode="rgb_array"):
         """
         DexHandEnv is an implementation of the DexHand + Tac3D engineed by Mujoco, with API formulated based on Gym.
         DexHandEnv supports the following important methods:
@@ -19,9 +19,29 @@ class DexHandEnv(gym.Env):
         - replay(): Replay the current snapshot or the whole episode.
         - close(): Close the environment and release resources.
         """
-        self.model_path = os.path.join(model_dir, "scene.xml")
-        self.render_mode = render_mode
-        with open(self.model_path,"r") as f:
+        self.max_iter, self.pos_tolerane, self.velocity_tolerance, self.force_tolerance = 1000, 0.001, 0.001, 1  # Maximum iteration and error tolerance of position error
+        self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
+        
+        self.render_mode = render_mode  # Rendering mode, can be "human" or "rgb_array"
+        self.episode_mode = "keyframe"  # Full mode for enhancing the display, keyframe mode for training
+        self.replay_mode = "episode"  # snapshot mode for replaying the current frame, episode mode for replaying the whole episode
+        
+        self.action_space = gym.spaces.Box(low=0, high=1, shape=(7, ), dtype=np.float32)  # Action space is a 7D vector
+        self.observation_space = gym.spaces.Dict({
+            "rgb": gym.spaces.Box(low=0, high=255, shape=(3, 512, 512), dtype=np.uint8),
+            "depth": gym.spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),  # Depth image is a single channel image
+            "segmentation": gym.spaces.Box(low=0, high=255, shape=(2, 512, 512), dtype=np.uint8),  # Segmentation image is a single channel image
+            "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
+            "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
+            "joint": gym.spaces.Box(low=-1, high=1, shape=(15, ), dtype=np.float32)}  # joint: 15D = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
+        )
+
+        self._load_model(model_path)
+    
+    def _load_model(self, model_path):
+        """ Load the Mujoco model from the XML file.
+        """
+        with open(model_path,"r") as f:
             self.xml_content = f.read()
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
@@ -33,24 +53,24 @@ class DexHandEnv(gym.Env):
         self.mj_viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data) if self.render_mode == "human" else None
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}
         self.actuator_dict = {self.mj_model.actuator(i).name: i for i in range(self.mj_model.actuator_actnum.shape[0])}
-        
-        self.max_iter, self.pos_tolerane, self.velocity_tolerance, self.force_tolerance = 1000, 0.001, 0.001, 1  # Maximum iteration and error tolerance of position error
-        self.action_space = gym.spaces.Box(low=0, high=1, shape=(self.mj_model.actuator_actnum.shape[0],), dtype=np.float32)  # Action space is a 7D vector
-        self.observation_space = gym.spaces.Dict({
-            "rgb": gym.spaces.Box(low=0, high=255, shape=(3, 512, 512), dtype=np.uint8),
-            "depth": gym.spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),  # Depth image is a single channel image
-            "segmentation": gym.spaces.Box(low=0, high=255, shape=(2, 512, 512), dtype=np.uint8),  # Segmentation image is a single channel image
-            "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
-            "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
-            "joint": gym.spaces.Box(low=-1, high=1, shape=self.mj_data.qpos.shape, dtype=np.float32)}  # joint: 15D = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
-        )  # Observation space
-        
-        self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
-        self.episode_mode = "keyframe"  # Full mode for enhancing the display, keyframe mode for training
-        self.replay_mode = "episode"  # snapshot mode for replaying the current frame, episode mode for replaying the whole episode
-        # self.reset()
+
+    def _release_model(self):
+        """ Release the Mujoco model and data.
+        """
+        if self.mj_viewer is not None:
+            self.mj_viewer.close()
+            self.mj_viewer = None
+        del self.mj_model
+        del self.mj_data
+        del self.mj_renderer_rgb
+        del self.mj_renderer_depth
+        del self.mj_renderer_segmentation
+        gc.collect()
 
     def reset(self):
+        """
+        The reset method of the parent class only resets the object posture and episode buffer, and the model will not be reloaded.
+        """
         self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}
         mujoco.mj_step(self.mj_model, self.mj_data)  # Step the simulation to initialize the scene
         self.add_frame()  # Add the initial frame to the episode buffer

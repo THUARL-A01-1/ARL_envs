@@ -9,7 +9,7 @@
         <!-- The robot -->
     <worldbody>
         <!-- hand base mount -->
-        <body name="hand_base_mount" pos="0 0 0" zaxis="0 0 1" childclass="dexhand" gravcomp="1">
+        <body name="hand_base_mount" pos="0 0 0.5" zaxis="0 0 1" childclass="dexhand" gravcomp="1">
             <joint name="hand_base_joint_x" type="slide" pos="0 0 0" axis="1 0 0" frictionloss="1" damping="10" range="-1 1"/>
             <joint name="hand_base_joint_y" type="slide" pos="0 0 0" axis="0 1 0" frictionloss="1" damping="10" range="-1 1"/>
             <joint name="hand_base_joint_z" type="slide" pos="0 0 0" axis="0 0 1" frictionloss="1" damping="10" range="-1 1"/>

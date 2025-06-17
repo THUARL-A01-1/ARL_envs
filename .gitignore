@@ -3,4 +3,5 @@
 **/assets/
 **/__pycache__/
 **/logs/
+**/scenes/
 /MUJOCO_LOG.TXT

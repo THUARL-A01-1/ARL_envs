@@ -13,9 +13,10 @@ from dexhand.dexhand import DexHandEnv
 import metric.labels as labels
 import metric.metrics as metrics
 import RLgrasp.utils as utils
+import random
 
 class RLGraspEnv(DexHandEnv):
-    def __init__(self, render_mode="rgb_array"):
+    def __init__(self, render_mode="rgb_array", grasp_mode="free"):
         """
         RLGraspEnv is an implementation of the DexHandEnv + RL API + multiobject scene engineed by Mujoco, with API formulated based on Gym.
         RLGraspEnv rewrites the following important methods:
@@ -23,8 +24,11 @@ class RLGraspEnv(DexHandEnv):
         - get_observation(): Get the hand obsrvation and the visual observation.
         - compute_reward(): Calculate the reward based on the contact state of the object.
         - reset(): Resample the object posture and grasping scene.
+        - params:
+        render_mode (str): The rendering mode, can be "human" or "rgb_array". Default is "rgb_array".
+        grasp_mode (str): The grasp mode, can be "free" (0-3N) or "fixed_force" (3N). Default is "free".
         """
-        super().__init__(model_dir="RLgrasp", render_mode=render_mode)
+        super().__init__(model_path="RLgrasp/scene.xml", render_mode=render_mode)
         # self.observation_space = spaces.Dict({
         #     "history_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),
         #     "history_action": spaces.Box(low=-1, high=1, shape=(7, ), dtype=np.float32),
@@ -32,13 +36,24 @@ class RLGraspEnv(DexHandEnv):
         self.observation_space = spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32)
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 10  # Maximum number of attempts to grasp the object
+        self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
+        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in range(50)]
         
     def reset(self, seed=None, options=None):
+        """
+        The reset method of the son class will reload the model.
+        """
+        model_path = random.choice(self.scene_xml_list)
+        self._release_model()  # Release the current model to avoid memory leak
+        self._load_model(model_path)  # Load a new model from the scene XML file
         _ = super().reset()
         self.action_buffer = []  # Clear the action history buffer
-        self.mj_data.qpos[:] = 0  # Reset the joint positions to zero
-        self.mj_data.qpos[2] = 0.5  # Set the hand to a certain height
+
+        self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
+        self.mj_data.qpos[8:10] = np.random.uniform(-0.2, 0.2, size=2)  # Randomly set the object position
+        self.mj_data.qpos[11:14] = np.random.uniform(-np.pi, np.pi, size=3)  # Randomly set the object orientation
         self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
+
         super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
 
         return self.get_observation(), {}
@@ -72,12 +87,15 @@ class RLGraspEnv(DexHandEnv):
         segmentation_mask = self.episode_buffer["segmentation"][-1][0, ...]  # Use the first channel of the segmentation mask
         try:
             approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
+            if self.grasp_mode == "fixed_force":
+                target_force = 3.0
         except Exception as e:  # If the object is not in the FOV, then action is invalid. To avoid the simulation interrupting, we return a negative reward.
             print(f"Error in transforming action: {e}")
             return self.get_observation(), -1.0 * self.max_attempts, True, True, {}
         
         # Step 1: Set the target approach position and target rotation
         self.mj_data.qpos[0:3] = approach_pos
+        self.mj_data.qpos[2] -= 0.5  # The origin of the hand has a height of 0.5, so we need to lower the hand to the ground level
         self.mj_data.qpos[3:6] = target_rot
         self.mj_data.qvel[:] = 0.0
         # Step 2: Move to the target grasp position
@@ -85,7 +103,7 @@ class RLGraspEnv(DexHandEnv):
         # Step 3: Apply the grasping force to the object
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([target_force])]))
         # Step 4: Lift the object to a certain height
-        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([5.0])]), add_frame=True)
+        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([target_force])]), add_frame=True)
 
         # calculate the relative feedback
         reward, done, truncated = self.compute_reward()
@@ -97,7 +115,6 @@ class RLGraspEnv(DexHandEnv):
         
         # Step 6: Set the hand to the initial qpos and get the next observation (image).
         self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
-        self.mj_data.qpos[2] = 0.5  # Set the hand to a certain height
         self.mj_data.qvel[0:6] = 0  # Reset the joint velocities to zero
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([-10])]))
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
