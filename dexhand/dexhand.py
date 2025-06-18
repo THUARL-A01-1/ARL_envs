@@ -47,9 +47,9 @@ class DexHandEnv(gym.Env):
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, 512, 512)
         self.mj_renderer_depth = mujoco.Renderer(self.mj_model, 512, 512)
-        self.mj_renderer_depth._depth_rendering = True
+        self.mj_renderer_depth.enable_depth_rendering()
         self.mj_renderer_segmentation = mujoco.Renderer(self.mj_model, 512, 512)
-        self.mj_renderer_segmentation._segmentation_rendering = True
+        self.mj_renderer_segmentation.enable_segmentation_rendering()
         self.mj_viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data) if self.render_mode == "human" else None
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}
         self.actuator_dict = {self.mj_model.actuator(i).name: i for i in range(self.mj_model.actuator_actnum.shape[0])}

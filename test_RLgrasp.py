@@ -5,7 +5,7 @@ from RLgrasp.RLgrasp import RLGraspEnv
 
 env = RLGraspEnv(render_mode="human")
 _ = env.reset()
-for i in range(10):
+for i in range(100):
     sample_action = env.action_space.sample()
     # sample_action[0] = 0.0  # r
     # sample_action[1] = 0.0  # beta
@@ -18,5 +18,5 @@ for i in range(10):
     observation, reward, done, truncated, info = env.step(sample_action)
     if done or truncated:
         print(f"Episode ended. Resetting environment.")
-        observation = env.reset()
+        observation, _ = env.reset()
 # env.replay()

@@ -2,7 +2,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
-from scipy.sparse import coo_matrix, linalg
+from scipy.sparse import coo_matrix, lil_matrix, linalg
 from scipy.spatial import Delaunay
 from scipy.spatial.transform import Rotation as R
 import triangle
@@ -95,7 +95,7 @@ def harmonic_mapping(vertices, segments, max_area=100):
             V.extend([w, w])
     
     # 构建稀疏矩阵
-    L = coo_matrix((V, (I, J)), shape=(len(mesh_points), len(mesh_points))).tocsr()
+    L = coo_matrix((V, (I, J)), shape=(len(mesh_points), len(mesh_points))).tolil()
     
     # 3. 非凸边界处理
     # 获取原始边界点索引（保留凹陷）
@@ -115,7 +115,8 @@ def harmonic_mapping(vertices, segments, max_area=100):
         A[pt_idx, :] = 0
         A[pt_idx, pt_idx] = 1
         b[pt_idx] = target[idx]
-    
+
+    A = A.tocsr()  # 转换为CSR格式以提高求解效率
     uv_coords = linalg.spsolve(A, b)  # 求解稀疏系统
     
     return uv_coords, mesh_points, mesh_tris
@@ -180,7 +181,7 @@ def camera2world_mapping(u, v, depth):
     camera_pos = np.array([(u - cx) * (depth / fx), (v - cy) * (depth / fy), depth])
     # Convert to world coordinates
     rot = R.from_quat([-0.3827, 0, 0, 0.9239])  # [x, y, z, w]
-    target_pos = rot.inv().apply(camera_pos) - np.array([0, -0.5, 0.5])
+    target_pos = rot.inv().apply(camera_pos) - np.array([0, -0.5, 0.3])
     target_pos[1:] = -target_pos[1:]  # Invert y and z coordinates to match the world coordinate system
     
     return target_pos

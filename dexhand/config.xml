@@ -6,23 +6,23 @@
     <extension>
         <plugin plugin="mujoco.sensor.touch_grid"/>
     </extension>
-    <!-- The default: visual (group 2) doesn't participate in collision. -->
+    <!-- The default: visual (group 2) doesn't participate in collision, and the collisiton (group 3) doesn't participate in visualization.-->
     <default>
         <default class="object">
-            <geom type="mesh" group="1"/>
+            <geom type="mesh" group="3"/>
             <mesh scale="0.001 0.001 0.001"/>
         </default>
         <default class="dexhand">
             <general biastype="affine"/>
             <joint axis="1 0 0"/>
             <default class="driver">
-                <joint type="slide" range="0 0.055" armature="0.01" damping="5" solimplimit="0.95 0.99 0.001" solreflimit="0.005"/>
+                <joint type="slide" range="0 0.052" armature="0.01" damping="10" solimplimit="0.95 0.99 0.001" solreflimit="0.005"/>
             </default>
             <default class="visual"> 
                 <geom type="mesh" contype="0" conaffinity="0" group="2"/>
             </default>
             <default class="collision">
-                <geom type="mesh" mass="0" rgba="0 0 0 0" group="1"/>
+                <geom type="mesh" mass="0" rgba="0 0 0 0" group="3"/>
                 <default class="pad"> 
                     <geom mass="0" type="box" friction="1" solimp="0.1 0.99 0.001" solref="0.005 1" priority="1" margin="0"/>
                 </default>

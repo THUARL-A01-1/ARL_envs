@@ -37,13 +37,14 @@ class RLGraspEnv(DexHandEnv):
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 10  # Maximum number of attempts to grasp the object
         self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
-        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in range(50)]
+        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in range(50) if i not in [21, 22, 44]]
         
     def reset(self, seed=None, options=None):
         """
         The reset method of the son class will reload the model.
         """
         model_path = random.choice(self.scene_xml_list)
+        # model_path = self.scene_xml_list[5]
         self._release_model()  # Release the current model to avoid memory leak
         self._load_model(model_path)  # Load a new model from the scene XML file
         _ = super().reset()

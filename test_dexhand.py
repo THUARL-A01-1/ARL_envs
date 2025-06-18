@@ -158,5 +158,5 @@ def test_env():
     env.replay()
 
 if __name__ == '__main__':
-    test_env()
-    # test_in_GUI()
+    # test_env()
+    test_in_GUI()
