@@ -6,8 +6,9 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.torch_layers import NatureCNN
 import torch
-import pickle
+import torch.nn as nn
 
 def make_env(mode="train"):
     def _init():
@@ -17,6 +18,23 @@ def make_env(mode="train"):
             env = RLGraspEnv(render_mode="rgb_array", grasp_mode="fixed_force", scene_range=range(50, 88))
         return Monitor(env)
     return _init
+
+class CustomCNN(NatureCNN):
+    def __init__(self, *args, **kwargs):
+        super(CustomCNN, self).__init__(*args, **kwargs)
+        self.cnn = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=6, stride=2),
+            nn.ReLU(),
+            nn.MaxPool2d(3),
+            nn.Conv2d(64, 64, kernel_size=5, stride=2),
+            nn.ReLU(),
+            nn.MaxPool2d(3),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Flatten(),
+            )
+        self.linear = nn.Sequential(nn.Linear(1600, 64), nn.ReLU())
 
 if __name__ == "__main__":
     # 训练配置
@@ -31,8 +49,10 @@ if __name__ == "__main__":
         "vf_coef": 0.5,                    # 值函数损失系数
         "max_grad_norm": 0.5,              # 最大梯度范数
         "policy_kwargs": dict(
+            features_extractor_class=CustomCNN,  # 自定义特征提取器
+            features_extractor_kwargs=dict(features_dim=64),  # 特征提取器参数
             net_arch=dict(pi=[64, 64], vf=[64, 64]),  # 策略和价值网络结构
-            activation_fn= torch.nn.ReLU,  # 激活函数
+            activation_fn= nn.ReLU,  # 激活函数
             normalize_images=False,        # 是否归一化图像
         ),
 
@@ -43,8 +63,8 @@ if __name__ == "__main__":
         #     history_len=4,                 # 历史帧数
         #     reward_type="dense",           # 奖励类型
         # ),
-        "train_envs": 32,                     # 并行环境数
-        "eval_envs": 4,
+        "train_envs": 8,                     # 并行环境数
+        "eval_envs": 1,
         # "save_freq": 10_000,               # 保存频率
         "eval_freq": 10,               # 验证频率
         # "seed": 42,                        # 随机种子
