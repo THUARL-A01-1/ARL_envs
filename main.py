@@ -41,7 +41,7 @@ if __name__ == "__main__":
     config = {
         "learning_rate": 3e-4,             # 学习率
         "batch_size": 16,                  # 批量大小
-        "n_steps": 5,                   # 每次更新的步数（PPO等）
+        "n_steps": 10,                   # 每次更新的步数（PPO等）
         "gamma": 0.99,                     # 折扣因子
         "gae_lambda": 0.95,                # GAE参数
         "clip_range": 0.2,                 # PPO裁剪范围
@@ -63,10 +63,10 @@ if __name__ == "__main__":
         #     history_len=4,                 # 历史帧数
         #     reward_type="dense",           # 奖励类型
         # ),
-        "train_envs": 8,                     # 并行环境数
-        "eval_envs": 1,
+        "train_envs": 16,                     # 并行环境数
+        "eval_envs": 2,
         # "save_freq": 10_000,               # 保存频率
-        "eval_freq": 10,               # 验证频率
+        "eval_freq": 40,               # 验证频率
         # "seed": 42,                        # 随机种子
     }
 
@@ -90,3 +90,4 @@ if __name__ == "__main__":
 
     # 关闭环境
     train_env.close()
+    eval_env.close()

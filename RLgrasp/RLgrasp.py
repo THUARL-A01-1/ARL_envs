@@ -10,6 +10,7 @@ import os
 import time
 # 从上一级目录导入DexHandEnv类
 from dexhand.dexhand import DexHandEnv
+import metric.interactions as interactions
 import metric.labels as labels
 import metric.metrics as metrics
 import RLgrasp.utils as utils
@@ -130,7 +131,7 @@ class RLGraspEnv(DexHandEnv):
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
         observation = self.get_observation()
 
-        # print(f"reward: {reward}, done: {done}, truncated: {truncated}")
+        print(f"reward: {reward}, done: {done}, truncated: {truncated}")
         
         return observation, reward, done, truncated, info
 
@@ -162,13 +163,17 @@ class RLGraspEnv(DexHandEnv):
         contact_hand, contact_floor = labels.contact_labels(self)
         if not contact_hand:
             reward = -1.0
-        elif contact_hand and contact_floor:
-            reward = -0.5
+        # elif contact_hand and contact_floor:
+        #     reward = -0.5
+        # else:
+        #     reward = 0.0
         else:
-            reward = 0.0
+            measurement = interactions.measure(self)
+            our_metric, Fv = metrics.calculate_our_metric(measurement)
+            reward = -np.mean(our_metric)
         
-        truncated = len(self.episode_buffer["rgb"]) >= 2 * self.max_attempts + 2
-        done = (reward == 0.0) or truncated
+        truncated = len(self.episode_buffer["rgb"]) >= 2 * self.max_attempts
+        done = (contact_hand and (not contact_floor)) or truncated
         
         return reward, done, truncated
 
