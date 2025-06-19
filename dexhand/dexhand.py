@@ -41,7 +41,8 @@ class DexHandEnv(gym.Env):
     def _load_model(self, model_path):
         """ Load the Mujoco model from the XML file.
         """
-        with open(model_path,"r") as f:
+        self.model_path = model_path
+        with open(self.model_path,"r") as f:
             self.xml_content = f.read()
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
@@ -89,7 +90,7 @@ class DexHandEnv(gym.Env):
         try:
             self.episode_buffer["segmentation"].append(self.mj_renderer_segmentation.render().transpose(2, 0, 1))
         except IndexError as e:
-            print(f"Segmentation rendering failed: {e}")
+            print(f"From {self.model_path}: Segmentation rendering failed: {e}")
             self.episode_buffer["segmentation"].append(np.zeros((2, 512, 512), dtype=np.uint8))
         self.episode_buffer["tactile_left"].append(left_tactile)
         self.episode_buffer["tactile_right"].append(right_tactile)

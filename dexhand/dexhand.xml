@@ -85,12 +85,12 @@
         <position class="dexhand" name="position_y" joint="hand_base_joint_y" ctrlrange="-1 1" kp="100"/>
         <position class="dexhand" name="position_z" joint="hand_base_joint_z" ctrlrange="-1 1" kp="100"/>
         <position class="dexhand" name="position_yaw" joint="hand_base_joint_yaw" ctrlrange="-3.14159 3.14159" kp="100"/> -->
-        <velocity class="dexhand" name="velocity_x" joint="hand_base_joint_x" ctrlrange="-1 1" kv="100"/>
-        <velocity class="dexhand" name="velocity_y" joint="hand_base_joint_y" ctrlrange="-1 1" kv="100"/>
-        <velocity class="dexhand" name="velocity_z" joint="hand_base_joint_z" ctrlrange="-1 1" kv="100"/>
-        <velocity class="dexhand" name="velocity_pitch" joint="hand_base_joint_pitch" ctrlrange="-3.14159 3.14159" kv="100"/>
-        <velocity class="dexhand" name="velocity_roll" joint="hand_base_joint_roll" ctrlrange="-3.14159 3.14159" kv="100"/>
-        <velocity class="dexhand" name="velocity_yaw" joint="hand_base_joint_yaw" ctrlrange="-3.14159 3.14159" kv="100"/>
+        <velocity class="dexhand" name="velocity_x" joint="hand_base_joint_x" ctrlrange="-0.5 0.5" kv="100"/>
+        <velocity class="dexhand" name="velocity_y" joint="hand_base_joint_y" ctrlrange="-0.5 0.5" kv="100"/>
+        <velocity class="dexhand" name="velocity_z" joint="hand_base_joint_z" ctrlrange="-0.5 0.5" kv="100"/>
+        <velocity class="dexhand" name="velocity_pitch" joint="hand_base_joint_pitch" ctrlrange="-0.314159 0.314159" kv="100"/>
+        <velocity class="dexhand" name="velocity_roll" joint="hand_base_joint_roll" ctrlrange="-0.314159 0.314159" kv="100"/>
+        <velocity class="dexhand" name="velocity_yaw" joint="hand_base_joint_yaw" ctrlrange="-0.314159 0.314159" kv="100"/>
         <motor class="dexhand" name="gripper" tendon="gripper" ctrlrange="-10 10" forcerange="-10 10"/>
     </actuator>
     <include file="dexhand/assets/tactile/touch_sensors.xml"/>

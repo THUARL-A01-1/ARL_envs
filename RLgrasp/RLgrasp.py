@@ -16,7 +16,7 @@ import RLgrasp.utils as utils
 import random
 
 class RLGraspEnv(DexHandEnv):
-    def __init__(self, render_mode="rgb_array", grasp_mode="free"):
+    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50)):
         """
         RLGraspEnv is an implementation of the DexHandEnv + RL API + multiobject scene engineed by Mujoco, with API formulated based on Gym.
         RLGraspEnv rewrites the following important methods:
@@ -27,6 +27,7 @@ class RLGraspEnv(DexHandEnv):
         - params:
         render_mode (str): The rendering mode, can be "human" or "rgb_array". Default is "rgb_array".
         grasp_mode (str): The grasp mode, can be "free" (0-3N) or "fixed_force" (3N). Default is "free".
+        scene_range (list): The scene.xml range that is being randomized. e.g.: 0-50 for training and 50-88 for evaluation.
         """
         super().__init__(model_path="RLgrasp/scene.xml", render_mode=render_mode)
         # self.observation_space = spaces.Dict({
@@ -37,16 +38,16 @@ class RLGraspEnv(DexHandEnv):
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 10  # Maximum number of attempts to grasp the object
         self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
-        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in range(50) if i not in [21, 22, 44]]
+        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in [22]]
         
     def reset(self, seed=None, options=None):
         """
         The reset method of the son class will reload the model.
         """
-        model_path = random.choice(self.scene_xml_list)
-        # model_path = self.scene_xml_list[5]
+        self.model_path = random.choice(self.scene_xml_list)
+        # model_path = self.scene_xml_list[21]
         self._release_model()  # Release the current model to avoid memory leak
-        self._load_model(model_path)  # Load a new model from the scene XML file
+        self._load_model(self.model_path)  # Load a new model from the scene XML file
         _ = super().reset()
         self.action_buffer = []  # Clear the action history buffer
 
@@ -86,13 +87,19 @@ class RLGraspEnv(DexHandEnv):
         self.action_buffer.append(action)
         depth_image = self.episode_buffer["depth"][-1][0, ...]
         segmentation_mask = self.episode_buffer["segmentation"][-1][0, ...]  # Use the first channel of the segmentation mask
+        
+        if depth_image[segmentation_mask != 0].size < 100:  # If the object if out of the scene FOV, the depth point is less than 3 pts to construct mesh triangle. Then truncated
+            print(f"From {self.model_path}: The object is out of the scene and the episode is truncated.")
+            return self.get_observation(), -1.0 * self.max_attempts, True, True, {}
+        
         try:
             approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
-            if self.grasp_mode == "fixed_force":
-                target_force = 3.0
-        except Exception as e:  # If the object is not in the FOV, then action is invalid. To avoid the simulation interrupting, we return a negative reward.
-            print(f"Error in transforming action: {e}")
+        except Exception as e:  # If the mesh traingle has other error, the episode will be truncated.
+            print(f"From {self.model_path}: Error in transforming action: {e}")
             return self.get_observation(), -1.0 * self.max_attempts, True, True, {}
+        
+        if self.grasp_mode == "fixed_force":
+            target_force = 3.0
         
         # Step 1: Set the target approach position and target rotation
         self.mj_data.qpos[0:3] = approach_pos
@@ -112,7 +119,9 @@ class RLGraspEnv(DexHandEnv):
 
         # Step 5: If the contact flag is True, then drop the object
         if reward >= -0.5:
-            super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([target_force])]))
+            super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([target_force])]))  # drop the hand
+            super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([-target_force])]))  # release the hand
+            super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pos
         
         # Step 6: Set the hand to the initial qpos and get the next observation (image).
         self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
@@ -121,10 +130,15 @@ class RLGraspEnv(DexHandEnv):
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
         observation = self.get_observation()
 
-        print(f"reward: {reward}, done: {done}, truncated: {truncated}")
+        # print(f"reward: {reward}, done: {done}, truncated: {truncated}")
         
         return observation, reward, done, truncated, info
-        
+
+    def close(self):
+        self._release_model()
+        self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}
+        self.action_buffer = []
+
     def get_observation(self):
         """
         The observation is the accumulated version of the episode buffer + action history.

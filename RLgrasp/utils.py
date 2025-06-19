@@ -204,7 +204,7 @@ def transform_action(action, depth_image, segmentation_mask, hand_offset, approa
     :param approach_offset: The offset distance from the grasp point to the approach position.
     :return: A tuple containing the approach position, target rotation, target position, and target force.
     """
-    r, beta, depth_factor, theta, phi, alpha, grasp_force = action[0], action[1] * 2 * np.pi, action[2], action[3] * np.pi / 2, action[4] * 2 * np.pi, action[5] * 2 * np.pi, action[6] * 3.0
+    r, beta, depth_factor, theta, phi, alpha, grasp_force = action[0], action[1] * 2 * np.pi, action[2], action[3] * 8 * np.pi / 20, action[4] * 2 * np.pi, action[5] * 2 * np.pi, action[6] * 3.0
     
     # Step 1: Extract the object contour from the depth image
     # Normalize the depth image to [0, 1]
