@@ -10,7 +10,7 @@ import os
 import time
 
 class DexHandEnv(gym.Env):
-    def __init__(self, model_path="dexhand/scene.xml", render_mode="rgb_array"):
+    def __init__(self, model_path="RLgrasp/scene.xml", render_mode="rgb_array"):
         """
         DexHandEnv is an implementation of the DexHand + Tac3D engineed by Mujoco, with API formulated based on Gym.
         DexHandEnv supports the following important methods:
@@ -26,13 +26,13 @@ class DexHandEnv(gym.Env):
         self.episode_mode = "keyframe"  # Full mode for enhancing the display, keyframe mode for training
         self.replay_mode = "episode"  # snapshot mode for replaying the current frame, episode mode for replaying the whole episode
         
-        self.action_space = gym.spaces.Box(low=0, high=1, shape=(7, ), dtype=np.float32)  # Action space is a 7D vector
+        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(7, ), dtype=np.float32)  # Action space is a 7D vector
         self.observation_space = gym.spaces.Dict({
             "rgb": gym.spaces.Box(low=0, high=255, shape=(3, 512, 512), dtype=np.uint8),
-            "depth": gym.spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),  # Depth image is a single channel image
+            "depth": gym.spaces.Box(low=0, high=255, shape=(1, 512, 512), dtype=np.uint8),  # Depth image is a single channel image
             "segmentation": gym.spaces.Box(low=0, high=255, shape=(2, 512, 512), dtype=np.uint8),  # Segmentation image is a single channel image
-            "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
-            "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(3, 20, 20), dtype=np.float32),
+            "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(1200, ), dtype=np.float32),
+            "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(1200, ), dtype=np.float32),
             "joint": gym.spaces.Box(low=-1, high=1, shape=(15, ), dtype=np.float32)}  # joint: 15D = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
         )
 
@@ -60,41 +60,41 @@ class DexHandEnv(gym.Env):
         """
         if self.mj_viewer is not None:
             self.mj_viewer.close()
-            self.mj_viewer = None
-        del self.mj_model
-        del self.mj_data
-        del self.mj_renderer_rgb
-        del self.mj_renderer_depth
-        del self.mj_renderer_segmentation
+        self.mj_renderer_rgb.close()
+        self.mj_renderer_depth.close()
+        self.mj_renderer_segmentation.close()
+        mujoco.mj_resetCallbacks()  # 清除回调函数
+        self.xml_content, self.mj_model, self.mj_data, self.mj_renderer_rgb, self.mj_renderer_depth, self.mj_renderer_segmentation, self.mj_viewer = None, None, None, None, None, None, None
         gc.collect()
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         """
         The reset method of the parent class only resets the object posture and episode buffer, and the model will not be reloaded.
         """
         self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}
         mujoco.mj_step(self.mj_model, self.mj_data)  # Step the simulation to initialize the scene
         self.add_frame()  # Add the initial frame to the episode buffer
-        return self.mj_renderer_rgb.render()
+        return self.mj_renderer_rgb.render(), {}
 
     def add_frame(self):
-        self.mj_renderer_rgb.update_scene(self.mj_data, camera="main")
+        # self.mj_renderer_rgb.update_scene(self.mj_data, camera="main")
         self.mj_renderer_depth.update_scene(self.mj_data, camera="main")
         self.mj_renderer_segmentation.update_scene(self.mj_data, camera="main")
         
-        right_tactile = self.mj_data.sensordata[:1200].copy().reshape(3, 20, 20)
-        left_tactile = self.mj_data.sensordata[1200:].copy().reshape(3, 20, 20)
-        
-        self.episode_buffer["rgb"].append(self.mj_renderer_rgb.render().transpose(2, 0, 1))
-        self.episode_buffer["depth"].append(np.expand_dims(self.mj_renderer_depth.render(), axis=0))
+        # right_tactile = self.mj_data.sensordata[:1200].copy()
+        # left_tactile = self.mj_data.sensordata[1200:].copy()
+
+        # self.episode_buffer["tactile_left"].append(left_tactile)
+        # self.episode_buffer["tactile_right"].append(right_tactile)
+        # self.episode_buffer["joint"].append(self.mj_data.qpos.copy())
+
+        # self.episode_buffer["rgb"].append(self.mj_renderer_rgb.render().transpose(2, 0, 1).astype(np.uint8))
+        self.episode_buffer["depth"].append(np.expand_dims(self.mj_renderer_depth.render() * 255, axis=0).astype(np.uint8))
         try:
-            self.episode_buffer["segmentation"].append(self.mj_renderer_segmentation.render().transpose(2, 0, 1))
+            self.episode_buffer["segmentation"].append(self.mj_renderer_segmentation.render().transpose(2, 0, 1).astype(np.uint8))
         except IndexError as e:
             print(f"From {self.model_path}: Segmentation rendering failed: {e}")
             self.episode_buffer["segmentation"].append(np.zeros((2, 512, 512), dtype=np.uint8))
-        self.episode_buffer["tactile_left"].append(left_tactile)
-        self.episode_buffer["tactile_right"].append(right_tactile)
-        self.episode_buffer["joint"].append(self.mj_data.qpos.copy())
 
     def step(self, action, sleep=False, add_frame=False):
         """
@@ -129,7 +129,7 @@ class DexHandEnv(gym.Env):
             # print(f"Iteration {iter}, error_pos: {error_pos}, error_force: {error_force}")
             self.add_frame()
         
-        return self.get_observation(), self.compute_reward(), self.is_done(), {}
+        return self.get_observation(), self.compute_reward(), self.is_done(), False, {}
     
     def get_observation(self):
         return {
@@ -151,6 +151,7 @@ class DexHandEnv(gym.Env):
         Draw tactile sensor data (20*20*3), with the color representing the z-force.
         Note: The x-axis in the finger coordinate system is the gravity direction in the world.
         """
+        tactile = tactile.reshape(3, 20, 20)  # Reshape 1200 to 3*20*20
         X, Y = np.meshgrid(np.arange(20), np.arange(20))
         Fx, Fy, Fz = tactile[1, ...], tactile[2, ...], tactile[0, ...]
         quiver = plt.quiver(Y, X, Fy, Fx, Fz, cmap='coolwarm', pivot='tail',
@@ -180,18 +181,8 @@ class DexHandEnv(gym.Env):
         segmentation_frame = cv2.resize(segmentation_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
         depth_frame = self.episode_buffer["depth"][frame_id].transpose(1, 2, 0)
         depth_frame = cv2.resize(depth_frame, (720, 540), interpolation=cv2.INTER_LINEAR)
-        depth_frame = 1 - depth_frame.clip(0, 1)  # Clip depth values to [0, 1]
-
-        depth_min = np.min(depth_frame)
-        depth_max = np.max(depth_frame)
-        # 防止除零
-        if depth_max > depth_min:
-            depth_norm = (depth_frame - depth_min) / (depth_max - depth_min)
-        else:
-            depth_norm = np.zeros_like(depth_frame)
-        depth_uint8 = (depth_norm * 255).astype(np.uint8)
         
-        visual_frame = np.vstack((rgb_frame, np.repeat(np.expand_dims(depth_uint8, axis=-1), 3, axis=-1)))
+        visual_frame = np.vstack((rgb_frame, np.repeat(np.expand_dims(depth_frame, axis=-1), 3, axis=-1)))
         visual_frame = cv2.cvtColor(visual_frame, cv2.COLOR_RGB2BGR)
 
         tactile_left_frame = self.draw_tactile(self.episode_buffer["tactile_left"][frame_id])

@@ -14,8 +14,7 @@ def extract_contour(depth_image):
     :return: A 2D numpy array of contour points.
     """
     # Find contours in the depth image
-    depth_uint8 = (depth_image * 255).astype(np.uint8)
-    _, binary = cv2.threshold(depth_uint8, 220, 255, cv2.THRESH_BINARY_INV)  # 50 可调整
+    _, binary = cv2.threshold(depth_image, 220, 255, cv2.THRESH_BINARY_INV)  # 50 可调整
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     # Select the largest contour
@@ -204,22 +203,36 @@ def transform_action(action, depth_image, segmentation_mask, hand_offset, approa
     :param approach_offset: The offset distance from the grasp point to the approach position.
     :return: A tuple containing the approach position, target rotation, target position, and target force.
     """
-    r, beta, depth_factor, theta, phi, alpha, grasp_force = action[0], action[1] * 2 * np.pi, action[2], action[3] * 8 * np.pi / 20, action[4] * 2 * np.pi, action[5] * 2 * np.pi, action[6] * 3.0
+    action = (action + 1) / 2  # Transform the range from [-1, 1] to [0, 1]
+    r, beta, depth_factor, theta, phi, alpha, grasp_force = action[0], action[1] * 2 * np.pi, action[2], action[3] * 8 * np.pi / 20, action[4] * 2 * np.pi, action[5] * 2 * np.pi, action[6] * 5.0
     
     # Step 1: Extract the object contour from the depth image
     # Normalize the depth image to [0, 1]
-    depth_image[segmentation_mask == 0] = 1.0  # Set the background depth to 1.0
-    min_depth, max_depth = np.min(depth_image[segmentation_mask != 0]), np.max(depth_image[segmentation_mask != 0])
-    contour = extract_contour(depth_image)
+    depth_image[segmentation_mask == 0] = 255  # Set the background depth to 255
+    min_depth, max_depth = np.min(depth_image[segmentation_mask != 0]) / 255, np.max(depth_image[segmentation_mask != 0]) / 255
+    try:
+        contour = extract_contour(depth_image)
+    except Exception as e:
+        print(f"Error in extracting contour: {e}")
+        return None, None, None, None
+    
     vertices = contour
     segments = [(i, (i+1)%len(vertices)) for i in range(len(vertices))]
     
     # Step 2: Calculate the harmonic transform of the object contour
-    uv, points, tris = harmonic_mapping(vertices, segments, max_area=10)
+    try:
+        uv, points, tris = harmonic_mapping(vertices, segments, max_area=10)
+    except Exception as e:
+        print(f"Error in harmonic_mapping: {e}")
+        return None, None, None, None
 
     # Step 3: Convert polar coordinates (r, beta) to Cartesian coordinates (x, y)
     action_map = np.array([[r * np.cos(beta), r * np.sin(beta)]])  # (1, 2)
-    action_origin = inverse_mapping(uv, points, action_map)
+    try:
+        action_origin = inverse_mapping(uv, points, action_map)
+    except Exception as e:
+        print(f"Error in inverse_mapping: {e}")
+        return None, None, None, None
     # visualize_mapping(uv, points, tris, action_map, action_origin)
 
     # Step 4: Calculate the depth based on the depth image and depth factor

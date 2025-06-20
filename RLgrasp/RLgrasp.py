@@ -15,9 +15,10 @@ import metric.labels as labels
 import metric.metrics as metrics
 import RLgrasp.utils as utils
 import random
+from pympler import asizeof
 
 class RLGraspEnv(DexHandEnv):
-    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50)):
+    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50), scene_id=0):
         """
         RLGraspEnv is an implementation of the DexHandEnv + RL API + multiobject scene engineed by Mujoco, with API formulated based on Gym.
         RLGraspEnv rewrites the following important methods:
@@ -30,16 +31,17 @@ class RLGraspEnv(DexHandEnv):
         grasp_mode (str): The grasp mode, can be "free" (0-3N) or "fixed_force" (3N). Default is "free".
         scene_range (list): The scene.xml range that is being randomized. e.g.: 0-50 for training and 50-88 for evaluation.
         """
-        super().__init__(model_path="RLgrasp/scene.xml", render_mode=render_mode)
+        super().__init__(model_path=f"RLgrasp/scenes/{scene_id:03d}.xml", render_mode=render_mode)
         # self.observation_space = spaces.Dict({
         #     "history_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),
         #     "history_action": spaces.Box(low=-1, high=1, shape=(7, ), dtype=np.float32),
         #     "current_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32)})
-        self.observation_space = spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(1, 512, 512), dtype=np.uint8)
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 10  # Maximum number of attempts to grasp the object
         self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
         self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in [22]]
+        print("RLgrasp env initialized.")
         
     def reset(self, seed=None, options=None):
         """
@@ -49,7 +51,7 @@ class RLGraspEnv(DexHandEnv):
         # model_path = self.scene_xml_list[21]
         self._release_model()  # Release the current model to avoid memory leak
         self._load_model(self.model_path)  # Load a new model from the scene XML file
-        _ = super().reset()
+        super().reset()
         self.action_buffer = []  # Clear the action history buffer
 
         self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
@@ -58,6 +60,7 @@ class RLGraspEnv(DexHandEnv):
         self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
 
         super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
+        print("RLgrasp env reset.")
 
         return self.get_observation(), {}
     
@@ -93,14 +96,13 @@ class RLGraspEnv(DexHandEnv):
             print(f"From {self.model_path}: The object is out of the scene and the episode is truncated.")
             return self.get_observation(), -1.0 * self.max_attempts, True, True, {}
         
-        try:
-            approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
-        except Exception as e:  # If the mesh traingle has other error, the episode will be truncated.
-            print(f"From {self.model_path}: Error in transforming action: {e}")
+        approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, depth_image, segmentation_mask, hand_offsest, approach_offset)
+        if approach_pos is None:
+            print(f"From {self.model_path}: Error in transforming action")
             return self.get_observation(), -1.0 * self.max_attempts, True, True, {}
         
         if self.grasp_mode == "fixed_force":
-            target_force = 3.0
+            target_force = 5.0
         
         # Step 1: Set the target approach position and target rotation
         self.mj_data.qpos[0:3] = approach_pos
@@ -112,14 +114,14 @@ class RLGraspEnv(DexHandEnv):
         # Step 3: Apply the grasping force to the object
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([target_force])]))
         # Step 4: Lift the object to a certain height
-        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([target_force])]), add_frame=True)
+        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([target_force])]), add_frame=False)
 
         # calculate the relative feedback
         reward, done, truncated = self.compute_reward()
         info = {}
 
         # Step 5: If the contact flag is True, then drop the object
-        if reward >= -0.5:
+        if reward > -1.0:
             super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([target_force])]))  # drop the hand
             super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([-target_force])]))  # release the hand
             super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pos
@@ -131,7 +133,10 @@ class RLGraspEnv(DexHandEnv):
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
         observation = self.get_observation()
 
-        print(f"reward: {reward}, done: {done}, truncated: {truncated}")
+        # print(f"reward: {reward}, done: {done}, truncated: {truncated}")
+        # full_size = asizeof.asizeof(self)  # 包含所有嵌套对象
+        # print(f"完整内存占用: {full_size / 1024:.2f} KB")  # 如CartPole约20KB，Atari可达50MB
+        gc.collect()
         
         return observation, reward, done, truncated, info
 
@@ -148,9 +153,9 @@ class RLGraspEnv(DexHandEnv):
         After the Nth attempt, the length of the episode buffer is 2N + 1, and the length of the action history is N.
         :return: A dictionary with the length of N + 1. N represent the history information, and 1 is the current visual information.
         """
-        observation = {"history_depth":np.array(self.episode_buffer["depth"][1:-1:2]), "history_action":np.array(self.action_buffer), "current_depth":np.array(self.episode_buffer["depth"][-1])}
+        # observation = {"history_depth":np.array(self.episode_buffer["depth"][1:-1:2]), "history_action":np.array(self.action_buffer), "current_depth":np.array(self.episode_buffer["depth"][-1])}
 
-        return observation["current_depth"]
+        return np.array(self.episode_buffer["depth"][-1])#observation["current_depth"]
 
 
     def compute_reward(self):
@@ -172,7 +177,7 @@ class RLGraspEnv(DexHandEnv):
             our_metric, Fv = metrics.calculate_our_metric(measurement)
             reward = -np.mean(our_metric)
         
-        truncated = len(self.episode_buffer["rgb"]) >= 2 * self.max_attempts
+        truncated = len(self.episode_buffer["depth"]) >= self.max_attempts + 2
         done = (contact_hand and (not contact_floor)) or truncated
         
         return reward, done, truncated

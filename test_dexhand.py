@@ -7,6 +7,7 @@ import mujoco
 from mujoco import viewer
 from dexhand.dexhand import DexHandEnv
 from scipy.spatial.transform import Rotation as R
+from stable_baselines3.common.env_checker import check_env
 
 def test_in_GUI():
     model_path = os.path.join('dexhand', 'scene.xml')
@@ -159,4 +160,6 @@ def test_env():
 
 if __name__ == '__main__':
     # test_env()
-    test_in_GUI()
+    # test_in_GUI()
+    env = DexHandEnv()
+    check_env(env)
