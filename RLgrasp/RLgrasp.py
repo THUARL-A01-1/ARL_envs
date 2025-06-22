@@ -40,7 +40,7 @@ class RLGraspEnv(DexHandEnv):
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 10  # Maximum number of attempts to grasp the object
         self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
-        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in [22]]
+        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in []]
         print("RLgrasp env initialized.")
         
     def reset(self, seed=None, options=None):
@@ -48,7 +48,8 @@ class RLGraspEnv(DexHandEnv):
         The reset method of the son class will reload the model.
         """
         self.model_path = random.choice(self.scene_xml_list)
-        # model_path = self.scene_xml_list[21]
+        # self.model_path = self.scene_xml_list[66]
+        print(f"RLgrasp env reset: {self.model_path}")
         self._release_model()  # Release the current model to avoid memory leak
         self._load_model(self.model_path)  # Load a new model from the scene XML file
         super().reset()
@@ -60,7 +61,6 @@ class RLGraspEnv(DexHandEnv):
         self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
 
         super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
-        print("RLgrasp env reset.")
 
         return self.get_observation(), {}
     
@@ -142,8 +142,8 @@ class RLGraspEnv(DexHandEnv):
 
     def close(self):
         self._release_model()
-        self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}
-        self.action_buffer = []
+        self.episode_buffer, self.joint_dict, self.actuator_dict, self.action_buffer, self.scene_xml_list = None, None, None, None, None
+        gc.collect()
 
     def get_observation(self):
         """

@@ -44,6 +44,7 @@ class DexHandEnv(gym.Env):
         self.model_path = model_path
         with open(self.model_path,"r") as f:
             self.xml_content = f.read()
+            print(f"Reading xml: {self.model_path}.")
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, 512, 512)
@@ -60,9 +61,13 @@ class DexHandEnv(gym.Env):
         """
         if self.mj_viewer is not None:
             self.mj_viewer.close()
+            del self.mj_viewer
         self.mj_renderer_rgb.close()
         self.mj_renderer_depth.close()
         self.mj_renderer_segmentation.close()
+        del self.mj_renderer_rgb
+        del self.mj_renderer_depth
+        del self.mj_renderer_segmentation
         mujoco.mj_resetCallbacks()  # 清除回调函数
         self.xml_content, self.mj_model, self.mj_data, self.mj_renderer_rgb, self.mj_renderer_depth, self.mj_renderer_segmentation, self.mj_viewer = None, None, None, None, None, None, None
         gc.collect()
