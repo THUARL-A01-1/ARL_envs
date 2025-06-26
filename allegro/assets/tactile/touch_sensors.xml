@@ -1,0 +1,34 @@
+<mujoco>
+    <sensor>
+        <plugin name="touch_th5" plugin="mujoco.sensor.touch_grid" objtype="site" objname="th5_pad_site">
+            <config key="size" value="20 20"/>
+            <config key="fov" value="11.5 11.5"/>
+            <config key="gamma" value="0"/> 
+            <config key="nchannel" value="3"/>
+        </plugin>
+    </sensor>
+    <sensor>
+        <plugin name="touch_if5" plugin="mujoco.sensor.touch_grid" objtype="site" objname="if5_pad_site">
+            <config key="size" value="20 20"/>
+            <config key="fov" value="11.5 11.5"/>
+            <config key="gamma" value="0"/> 
+            <config key="nchannel" value="3"/>
+        </plugin>
+    </sensor>
+    <sensor>
+        <plugin name="touch_mf5" plugin="mujoco.sensor.touch_grid" objtype="site" objname="mf5_pad_site">
+            <config key="size" value="20 20"/>
+            <config key="fov" value="11.5 11.5"/>
+            <config key="gamma" value="0"/> 
+            <config key="nchannel" value="3"/>
+        </plugin>
+    </sensor>
+    <sensor>
+        <plugin name="touch_pf5" plugin="mujoco.sensor.touch_grid" objtype="site" objname="pf5_pad_site">
+            <config key="size" value="20 20"/>
+            <config key="fov" value="11.5 11.5"/>
+            <config key="gamma" value="0"/> 
+            <config key="nchannel" value="3"/>
+        </plugin>
+    </sensor>
+</mujoco>

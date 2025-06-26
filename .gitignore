@@ -1,7 +1,6 @@
 # Results
-**/results/
-**/assets/
+metric/results/
+cad/assets/
 **/__pycache__/
 **/logs/
-**/scenes/
 /MUJOCO_LOG.TXT

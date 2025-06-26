@@ -1,0 +1,6 @@
+<mujoco>
+    <include file="dexhand/config.xml"/>
+    <include file="dexhand/visual.xml"/>
+    <include file="dexhand/dexhand.xml"/>
+    <include file="cad/assets/087/object.xml"/>
+</mujoco>
