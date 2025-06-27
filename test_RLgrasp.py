@@ -18,6 +18,6 @@ for i in range(100):
     observation, reward, done, truncated, info = env.step(sample_action)
     if done or truncated:
         print(f"Episode ended. Resetting environment.")
-        env.replay()
+        # env.replay()
         observation, _ = env.reset()
         

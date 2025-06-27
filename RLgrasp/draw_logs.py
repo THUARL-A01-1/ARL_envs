@@ -36,6 +36,6 @@ def plot_training_curve(log_file):
     plt.show()
 
 if __name__ == "__main__":
-    log_file = "RLgrasp/logs/ppo/evaluations.npz"
+    log_file = "RLgrasp/logs/ppo_test/evaluations.npz"
     plot_training_curve(log_file)
     print(f"Training curve saved as {log_file.replace('.npz', '.png')}")

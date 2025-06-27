@@ -10,6 +10,13 @@ from stable_baselines3.common.torch_layers import NatureCNN
 import torch
 import torch.nn as nn
 
+# 设置环境变量
+os.environ['MUJOCO_GL'] = 'egl'
+os.environ['MUJOCO_EGL_DEVICE_ID'] = '0'
+os.environ['EGL_PLATFORM'] = 'device'
+os.environ['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+os.environ['MESA_GLSL_VERSION_OVERRIDE'] = '330'
+
 def make_env(scene_id=0):
     def _init():
         env = RLGraspEnv(render_mode="rgb_array", grasp_mode="fixed_force", scene_range=range(88), scene_id=scene_id)  # 每个进程独立初始化
@@ -36,8 +43,8 @@ class CustomCNN(NatureCNN):
 if __name__ == "__main__":
     # 训练配置
     config = {
-        "learning_rate": 1e-4,             # 学习率
-        "batch_size": 32,                  # 批量大小
+        "learning_rate": 3e-4,             # 学习率
+        "batch_size": 16,                  # 批量大小
         "n_steps": 8,                   # 每次更新的步数（PPO等）
         "gamma": 0.99,                     # 折扣因子
         "gae_lambda": 0.95,                # GAE参数
@@ -60,7 +67,7 @@ if __name__ == "__main__":
         #     history_len=4,                 # 历史帧数
         #     reward_type="dense",           # 奖励类型
         # ),
-        "train_envs": 48,                    # 并行环境数
+        "train_envs": 24,                    # 并行环境数
         "eval_envs": 4,
         # "save_freq": 10_000,               # 保存频率
         "eval_freq": 24,                     # 验证频率

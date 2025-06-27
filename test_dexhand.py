@@ -10,7 +10,7 @@ from scipy.spatial.transform import Rotation as R
 from stable_baselines3.common.env_checker import check_env
 
 def test_in_GUI():
-    model_path = os.path.join('dexhand', 'scene.xml')
+    model_path = os.path.join('RLgrasp/scenes', '001.xml')
     with open(model_path,"r") as f:
         xml_content = f.read()
     model = mujoco.MjModel.from_xml_string(xml_content)
@@ -160,6 +160,6 @@ def test_env():
 
 if __name__ == '__main__':
     # test_env()
-    # test_in_GUI()
-    env = DexHandEnv()
-    check_env(env)
+    test_in_GUI()
+    # env = DexHandEnv()
+    # check_env(env)

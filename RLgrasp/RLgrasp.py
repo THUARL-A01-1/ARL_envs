@@ -18,7 +18,7 @@ import random
 from pympler import asizeof
 
 class RLGraspEnv(DexHandEnv):
-    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50), scene_id=0):
+    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50), scene_id=1):
         """
         RLGraspEnv is an implementation of the DexHandEnv + RL API + multiobject scene engineed by Mujoco, with API formulated based on Gym.
         RLGraspEnv rewrites the following important methods:
@@ -48,7 +48,7 @@ class RLGraspEnv(DexHandEnv):
         The reset method of the son class will reload the model.
         """
         self.model_path = random.choice(self.scene_xml_list)
-        # self.model_path = self.scene_xml_list[66]
+        # self.model_path = self.scene_xml_list[1]
         print(f"RLgrasp env reset: {self.model_path}")
         self._release_model()  # Release the current model to avoid memory leak
         self._load_model(self.model_path)  # Load a new model from the scene XML file
@@ -120,11 +120,11 @@ class RLGraspEnv(DexHandEnv):
         reward, done, truncated = self.compute_reward()
         info = {}
 
-        # Step 5: If the contact flag is True, then drop the object
-        if reward > -1.0:
-            super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([target_force])]))  # drop the hand
-            super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([-target_force])]))  # release the hand
-            super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pos
+        # # Step 5: If the contact flag is True, then drop the object
+        # if reward > -1.0:
+        #     super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([target_force])]))  # drop the hand
+            # super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([-target_force])]))  # release the hand
+            # super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pos
         
         # Step 6: Set the hand to the initial qpos and get the next observation (image).
         self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
