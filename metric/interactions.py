@@ -8,13 +8,15 @@ def pre_grasp(env, point, normal, angle, depth):
     Args: env (DexHandEnv): The DexHand environment. point, normal, depth: Target position of shape (3, 3, 1).
     Note: translation: qpos[0:3], rotation: qpos[3:6]
     """
-    translation = point + normal * (depth + 0.035)  # 0.033 is the offset from the base mount to the center of the fingers
+    translation = point + normal * (depth + 0.115)  # 0.033 is the offset from the base mount to the center of the fingers
     R_to_normal, _ = R.align_vectors([normal], [[0, 0, 1]])
     R_about_normal = R.from_rotvec(angle * normal)
     rot = R_about_normal * R_to_normal
     rotation = rot.as_euler('XYZ', degrees=False)
     env.mj_data.qpos[0:3] = translation
+    env.mj_data.qpos[2] -= 0.5  # The origin of the hand has a height of 0.5, so we need to lower the hand to the ground level
     env.mj_data.qpos[3:6] = rotation
+    env.step(np.zeros(7), sleep=True, add_frame=True)  # wait for the hand to reach the target position
 
 def grasp(env):
     """Grasp the object by applying a force to the hand, and then gravity.
@@ -22,14 +24,15 @@ def grasp(env):
     Returns: The measurement before and after applying the gravity, for calculating force closure metric and our metric respectively.
     """
     # apply grasping force
-    env.step(np.array([0, 0, 0.002, 0, 0, 0, 3]))
+    env.step(np.array([0, 0, 0.002, 0, 0, 0, 3]), sleep=False, add_frame=True)
     measurement1 = measure(env)
     
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
     env.mj_model.body_gravcomp[body_id] = 0.0
-    env.step(np.array([0, 0, 0.002, 0, 0, 0, 3]), sleep=False)
+    env.step(np.array([0, 0, 0.002, 0, 0, 0, 3]), sleep=False, add_frame=True)
     measurement2 = measure(env)
+    env.mj_model.body_gravcomp[body_id] = 1.0  # Restore the gravity compensation
 
     return measurement1, measurement2
 

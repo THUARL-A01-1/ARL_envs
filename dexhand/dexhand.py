@@ -48,10 +48,10 @@ class DexHandEnv(gym.Env):
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, 512, 512)
-        # self.mj_renderer_depth = mujoco.Renderer(self.mj_model, 512, 512)
-        # self.mj_renderer_depth.enable_depth_rendering()
-        # self.mj_renderer_segmentation = mujoco.Renderer(self.mj_model, 512, 512)
-        # self.mj_renderer_segmentation.enable_segmentation_rendering()
+        self.mj_renderer_depth = mujoco.Renderer(self.mj_model, 512, 512)
+        self.mj_renderer_depth.enable_depth_rendering()
+        self.mj_renderer_segmentation = mujoco.Renderer(self.mj_model, 512, 512)
+        self.mj_renderer_segmentation.enable_segmentation_rendering()
         self.mj_viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data) if self.render_mode == "human" else None
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}
         self.actuator_dict = {self.mj_model.actuator(i).name: i for i in range(self.mj_model.actuator_actnum.shape[0])}
@@ -63,12 +63,12 @@ class DexHandEnv(gym.Env):
             self.mj_viewer.close()
             del self.mj_viewer
         self.mj_renderer_rgb.close()
-        # self.mj_renderer_depth.close()
-        # self.mj_renderer_segmentation.close()
+        self.mj_renderer_depth.close()
+        self.mj_renderer_segmentation.close()
         del self.mj_renderer_rgb
-        # del self.mj_renderer_depth
-        # del self.mj_renderer_segmentation
-        mujoco.mj_resetCallbacks()  # 清除回调函数
+        del self.mj_renderer_depth
+        del self.mj_renderer_segmentation
+        # mujoco.mj_resetCallbacks()  # 清除回调函数
         # self.xml_content, self.mj_model, self.mj_data, self.mj_renderer_rgb, self.mj_renderer_depth, self.mj_renderer_segmentation, self.mj_viewer = None, None, None, None, None, None, None
         gc.collect()
 
@@ -77,28 +77,28 @@ class DexHandEnv(gym.Env):
         The reset method of the parent class only resets the object posture and episode buffer, and the model will not be reloaded.
         """
         self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}
+        self.mj_data.qpos[0:14] = 0 # Reset the joint positions to zero
+        self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
         mujoco.mj_step(self.mj_model, self.mj_data)  # Step the simulation to initialize the scene
         self.add_frame()  # Add the initial frame to the episode buffer
         return self.mj_renderer_rgb.render(), {}
 
     def add_frame(self):
         self.mj_renderer_rgb.update_scene(self.mj_data, camera="main")
-        # self.mj_renderer_depth.update_scene(self.mj_data, camera="main")
-        # self.mj_renderer_segmentation.update_scene(self.mj_data, camera="main")
+        self.mj_renderer_depth.update_scene(self.mj_data, camera="main")
+        self.mj_renderer_segmentation.update_scene(self.mj_data, camera="main")
         
-        # right_tactile = self.mj_data.sensordata[:1200].copy()
-        # left_tactile = self.mj_data.sensordata[1200:].copy()
+        right_tactile = self.mj_data.sensordata[:1200].copy()
+        left_tactile = self.mj_data.sensordata[1200:].copy()
 
-        # self.episode_buffer["tactile_left"].append(left_tactile)
-        # self.episode_buffer["tactile_right"].append(right_tactile)
-        # self.episode_buffer["joint"].append(self.mj_data.qpos.copy())
+        self.episode_buffer["tactile_left"].append(left_tactile)
+        self.episode_buffer["tactile_right"].append(right_tactile)
+        self.episode_buffer["joint"].append(self.mj_data.qpos.copy())
 
-        # self.episode_buffer["rgb"].append(self.mj_renderer_rgb.render().transpose(2, 0, 1).astype(np.uint8))
-        self.mj_renderer_rgb.enable_depth_rendering()
-        self.episode_buffer["depth"].append(np.expand_dims(self.mj_renderer_rgb.render() * 255, axis=0).astype(np.uint8))
+        self.episode_buffer["rgb"].append(self.mj_renderer_rgb.render().transpose(2, 0, 1).astype(np.uint8))
+        self.episode_buffer["depth"].append(np.expand_dims(self.mj_renderer_depth.render() * 255, axis=0).astype(np.uint8))
         try:
-            self.mj_renderer_rgb.enable_segmentation_rendering()
-            self.episode_buffer["segmentation"].append(self.mj_renderer_rgb.render().transpose(2, 0, 1).astype(np.uint8))
+            self.episode_buffer["segmentation"].append(self.mj_renderer_segmentation.render().transpose(2, 0, 1).astype(np.uint8))
         except IndexError as e:
             print(f"From {self.model_path}: Segmentation rendering failed: {e}")
             self.episode_buffer["segmentation"].append(np.zeros((2, 512, 512), dtype=np.uint8))

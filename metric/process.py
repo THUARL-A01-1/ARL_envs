@@ -1,5 +1,5 @@
 import json
-from wy_grasp import metrics
+from metric.metrics import calculate_our_metric, calculate_antipodal_metric, calculate_closure_metric
 import numpy as np
 import open3d as o3d
 import os
@@ -34,9 +34,9 @@ def preprocess_results(OBJECT_ID):
             F_mask_left, F_mask_right = np.linalg.norm(measurement2[0]["Fn_field"], axis=1) > 0.03, np.linalg.norm(measurement2[1]["Fn_field"], axis=1) > 0.03
             if contact_result == True and F_mask_left.tolist().count(True) > 10 and F_mask_right.tolist().count(True) > 10:
                 centroid = initial_centroid + np.array(measurement1[0]["object_pos"])  # Update the centroid with the object position
-                our_metric, Fv = metrics.calculate_our_metric(measurement2)
-                antipodal_metric, distance = metrics.calculate_antipodal_metric(measurement1, centroid)
-                closure_metric = metrics.calculate_closure_metric(measurement2, centroid, fricion_coef)
+                our_metric, Fv = calculate_our_metric(measurement2)
+                antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
+                closure_metric = calculate_closure_metric(measurement2, centroid, fricion_coef)
 
                 metrics_list.append({
                     "object_id": object_id,

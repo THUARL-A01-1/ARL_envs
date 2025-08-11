@@ -67,8 +67,8 @@ if __name__ == "__main__":
         #     history_len=4,                 # 历史帧数
         #     reward_type="dense",           # 奖励类型
         # ),
-        "train_envs": 24,                    # 并行环境数
-        "eval_envs": 4,
+        "train_envs": 16,                    # 并行环境数
+        "eval_envs": 2,
         # "save_freq": 10_000,               # 保存频率
         "eval_freq": 24,                     # 验证频率
         # "seed": 42,                        # 随机种子

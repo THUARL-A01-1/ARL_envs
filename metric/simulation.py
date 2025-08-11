@@ -1,6 +1,6 @@
 import json
 import numpy as np
-np.random.seed(42)  # Set a seed for reproducibility
+# np.random.seed(42)  # Set a seed for reproducibility
 import open3d as o3d
 import os
 import shutil
@@ -8,13 +8,13 @@ import shutil
 # My modules
 import cad.grasp_sampling
 from dexhand.dexhand import DexHandEnv
-from wy_grasp.interactions import pre_grasp, grasp
-from wy_grasp.labels import contact_success, grasp_success
-from wy_grasp.metrics import calculate_our_metric, calculate_antipodal_metric, calculate_closure_metric
+from metric.interactions import pre_grasp, grasp
+from metric.labels import contact_labels, grasp_success
+from metric.metrics import calculate_our_metric, calculate_antipodal_metric, calculate_closure_metric
 
 
-# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
-ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
+ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+# ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 def simulate(OBJECT_ID, num_samples=500):
     """
@@ -42,7 +42,7 @@ def simulate(OBJECT_ID, num_samples=500):
         print(f"Source not found: {src}")
 
     # Step 1: initialize the environment
-    env = DexHandEnv()
+    env = DexHandEnv(model_path="dexhand/scene.xml", render_mode="human")
     _ = env.reset()
     if not os.path.exists(os.path.join(ROOT_DIR, f"results/{OBJECT_ID}")):
         os.makedirs(os.path.join(ROOT_DIR, f"results/{OBJECT_ID}"))
@@ -72,7 +72,7 @@ def simulate(OBJECT_ID, num_samples=500):
             
             # grasp the object
             measurement1, measurement2 = grasp(env)
-            contact_result = contact_success(env)
+            contact_result, _ = contact_labels(env)
             if contact_result == False:
                 print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
                 # env.render()
@@ -84,7 +84,7 @@ def simulate(OBJECT_ID, num_samples=500):
 
             centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
             our_metric, Fv = calculate_our_metric(measurement2)
-            antipodal_metric, distance = calculate_antipodal_metric(measurement2, centroid)
+            antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
             closure_metric = calculate_closure_metric(measurement2, centroid, friction_coef)
 
             # post-grasp the object
@@ -95,16 +95,28 @@ def simulate(OBJECT_ID, num_samples=500):
             # save the results
             result = {
                 "object_id": OBJECT_ID,
-                "grasp_index": i,
+                "grasp_id": i,
+                "grasp_point": grasp_points[i].tolist(),
+                "grasp_normal": grasp_normals[i].tolist(),
+                "grasp_angle": grasp_angles[i],
+                "grasp_depth": grasp_depths[i],
+
                 "friction_coef": friction_coef,
                 "contact_result": contact_result,
                 "grasp_result": grasp_result,
                 "measurement1": measurement1,
-                "measurement2": measurement2}
-            with open(f"results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
+                "measurement2": measurement2,
+
+                "our_metric": our_metric.tolist(),
+                "antipodal_metric": antipodal_metric.tolist(),
+                "closure_metric": closure_metric,
+                "distance": distance,
+                "Fv": Fv.tolist()}
+            
+            with open(f"metric/results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
                 f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-            # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Filter out the grasps that are not rational
+            # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Check the grasps that are not rational
             # if (np.mean(our_metric) / friction_coef >= 0.8 and closure_metric > 0.5):
             #     our_metric, Fv = calculate_our_metric(measurement2)
             #     antipodal_metric, distance = calculate_antipodal_metric(measurement2, centroid)
