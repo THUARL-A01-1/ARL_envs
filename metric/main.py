@@ -10,8 +10,8 @@ from metric.simulation import simulate
 from metric.analysis import analyze_results
 
 
-# ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
-ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
+ROOT_DIR = "E:/2 - 3_Technical_material/Simulator/ARL_envs"
+# ROOT_DIR = "/home/ad102/AutoRobotLab/projects/Simulation/ARL_envs"
 
 if __name__ == "__main__":
     OBJECT_IDS = [i for i in range(0, 1) if i not in [9, 27, 33, 46, 88]]
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     for i in OBJECT_IDS:
         OBJECT_ID = f"{i:03d}"
         print(f"Simulating object {OBJECT_ID}...")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=20)
+        simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
 
     # # Collect data for all objects in the dataset
     # for i in range(89):
@@ -38,4 +38,30 @@ if __name__ == "__main__":
     # # Analyze the results for a specific object
     # print("Analyzing results...")
     # analyze_results(OBJECT_ID="all")
+
+    import json
+    json_file = os.path.join(ROOT_DIR, f"results/{OBJECT_ID}/grasp_results.json")
+    grasp_points, our_metrics, antipodal_metrics, closure_metrics = [], [], [], []
+    with open(json_file, "r", encoding="utf-8") as f:
+        for line in f:
+            data = json.loads(line)
+            grasp_points.append(data["grasp_point"])
+            our_metrics.append(sum(data["our_metric"]))
+            antipodal_metrics.append(sum(data["antipodal_metric"]))
+            closure_metrics.append(data["closure_metric"])
+    
+    import matplotlib.pyplot as plt
+    import numpy as np
+    grasp_points = np.array(grasp_points)
+    plt.scatter(our_metrics, closure_metrics, c=antipodal_metrics, cmap='viridis', s=5)
+    plt.show()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    sc = ax.scatter(grasp_points[:, 0], grasp_points[:, 1], grasp_points[:, 2], c=our_metrics, cmap='viridis', s=5)
+    plt.colorbar(sc, label='our_metric')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    plt.show()
+
 

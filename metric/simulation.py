@@ -42,7 +42,7 @@ def simulate(OBJECT_ID, num_samples=500):
         print(f"Source not found: {src}")
 
     # Step 1: initialize the environment
-    env = DexHandEnv(model_path="dexhand/scene.xml", render_mode="human")
+    env = DexHandEnv(model_path="dexhand/scene.xml", render_mode="rgb_array")
     _ = env.reset()
     if not os.path.exists(os.path.join(ROOT_DIR, f"results/{OBJECT_ID}")):
         os.makedirs(os.path.join(ROOT_DIR, f"results/{OBJECT_ID}"))
@@ -61,7 +61,7 @@ def simulate(OBJECT_ID, num_samples=500):
     # Step 3: for each grasp, reset the environment, pre-grasp the object, grasp the object, and post-grasp the object
     for i in range(len(grasp_points)):
         
-        for friction_coef in [0.5, 0.75, 1.0, 1.25, 1.5]:
+        for friction_coef in [1.0]:#[0.5, 0.75, 1.0, 1.25, 1.5]:
         # # randomize the friction coefficient
         # friction_coef = np.random.uniform(0.5, 1.5)
             _ = env.reset()
@@ -73,19 +73,20 @@ def simulate(OBJECT_ID, num_samples=500):
             # grasp the object
             measurement1, measurement2 = grasp(env)
             contact_result, _ = contact_labels(env)
-            if contact_result == False:
-                print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
-                # env.render()
-                continue
+            # if contact_result == False:
+            #     print(f"Grasp {i+1}/{len(grasp_points)}: Contact Failed, skipping...")
+            #     # env.render()
+            #     continue
     
-            if measurement2[0]["F_mask"].count(True) < 10 or measurement2[1]["F_mask"].count(True) < 10:  # Check if the contact is sufficient
+            if measurement1[0]["F_mask"].count(True) < 3 or measurement1[1]["F_mask"].count(True) < 3:  # Check if the contact is sufficient
                 print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
+                # env.replay()
                 continue
 
             centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
             our_metric, Fv = calculate_our_metric(measurement2)
             antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
-            closure_metric = calculate_closure_metric(measurement2, centroid, friction_coef)
+            closure_metric = calculate_closure_metric(measurement1, centroid, friction_coef)
 
             # post-grasp the object
             grasp_result = grasp_success(env)
@@ -104,8 +105,8 @@ def simulate(OBJECT_ID, num_samples=500):
                 "friction_coef": friction_coef,
                 "contact_result": contact_result,
                 "grasp_result": grasp_result,
-                "measurement1": measurement1,
-                "measurement2": measurement2,
+                # "measurement1": measurement1,
+                # "measurement2": measurement2,
 
                 "our_metric": our_metric.tolist(),
                 "antipodal_metric": antipodal_metric.tolist(),
@@ -113,8 +114,13 @@ def simulate(OBJECT_ID, num_samples=500):
                 "distance": distance,
                 "Fv": Fv.tolist()}
             
-            with open(f"metric/results/{OBJECT_ID}/grasp_results.json", "a", encoding="utf-8") as f:
-                f.write(json.dumps(result, ensure_ascii=False) + "\n")
+            json_file = os.path.join(ROOT_DIR, f"results/{OBJECT_ID}/grasp_results.json")
+            if not os.path.exists(json_file):
+                with open(json_file, "w", encoding="utf-8") as f:
+                    f.write(json.dumps(result, ensure_ascii=False) + "\n")
+            else:
+                with open(json_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
             # if (closure_metric > 0.5 and np.mean(our_metric) > 0.5) or (closure_metric < 0.2 and np.mean(our_metric) < 0.3):  # Check the grasps that are not rational
             # if (np.mean(our_metric) / friction_coef >= 0.8 and closure_metric > 0.5):
@@ -123,3 +129,4 @@ def simulate(OBJECT_ID, num_samples=500):
             #     print(f"Contact points: {measurement2[0]['F_mask'].count(True)}, {measurement2[1]['F_mask'].count(True)}")
             #     closure_metric = calculate_closure_metric(measurement2, centroid, friction_coef, draw=True)          
             #     env.render()
+            # env.replay()  # Render the environment to visualize the grasp

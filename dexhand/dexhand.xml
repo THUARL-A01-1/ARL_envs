@@ -16,7 +16,7 @@
             <joint name="hand_base_joint_pitch" type="hinge" pos="0 0 0" axis="1 0 0" frictionloss="1" damping="10" range="-3.14 3.14"/>
             <joint name="hand_base_joint_roll" type="hinge" pos="0 0 0" axis="0 1 0" frictionloss="1" damping="10" range="-3.14 3.14"/>
             <joint name="hand_base_joint_yaw" type="hinge" pos="0 0 0" axis="0 0 1" frictionloss="1" damping="10" range="-3.14 3.14"/>
-            <geom class="visual" type="sphere" size="0.01" material="metal"/>
+            <geom class="visual" type="sphere" name="hand_mocap" size="0.01" material="metal"/>
             <!-- hand base -->
             <body name="hand_base" pos="0 0 0" zaxis="0 1 0" gravcomp="1">
                 <geom class="visual" mesh="hand_base" pos="-0.081 0 -0.035" material="white"/>

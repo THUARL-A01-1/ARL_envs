@@ -16,6 +16,9 @@ def pre_grasp(env, point, normal, angle, depth):
     env.mj_data.qpos[0:3] = translation
     env.mj_data.qpos[2] -= 0.5  # The origin of the hand has a height of 0.5, so we need to lower the hand to the ground level
     env.mj_data.qpos[3:6] = rotation
+    # use the gravity compensation
+    body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
+    env.mj_model.body_gravcomp[body_id] = 1.0
     env.step(np.zeros(7), sleep=True, add_frame=True)  # wait for the hand to reach the target position
 
 def grasp(env):
@@ -24,13 +27,12 @@ def grasp(env):
     Returns: The measurement before and after applying the gravity, for calculating force closure metric and our metric respectively.
     """
     # apply grasping force
-    env.step(np.array([0, 0, 0.002, 0, 0, 0, 3]), sleep=False, add_frame=True)
+    env.step(np.array([0, 0, 0.0, 0, 0, 0, 5]), sleep=False, add_frame=True)
     measurement1 = measure(env)
-    
     # remove the gravity compensation
     body_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_BODY, "object")
     env.mj_model.body_gravcomp[body_id] = 0.0
-    env.step(np.array([0, 0, 0.002, 0, 0, 0, 3]), sleep=False, add_frame=True)
+    env.step(np.array([0, 0, 0.02, 0, 0, 0, 5]), sleep=True, add_frame=True)
     measurement2 = measure(env)
     env.mj_model.body_gravcomp[body_id] = 1.0  # Restore the gravity compensation
 
@@ -46,10 +48,11 @@ def measure(env):
     """
     # 常量，按照手指顺序
     num_fingers = 2  # 黑色driver为左，白色driver为右
+    hand_mocap_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "hand_mocap")
     finger_rotation_list = [np.array([[0, 0, -1], [0, -1, 0], [-1, 0, 0]]), np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]])]
     finger_geom_idx_list = [[mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"left_pad_collisions_{i}") for i in range(400)], [mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, f"right_pad_collisions_{i}") for i in range(400)]]
 
-    rotation_hand = env.mj_data.geom_xmat[4].reshape(3, 3)
+    rotation_hand = env.mj_data.geom_xmat[hand_mocap_id].reshape(3, 3)
     object_pos = env.mj_data.qpos[8:11].copy()
     measurement = []
     for i in range(num_fingers):

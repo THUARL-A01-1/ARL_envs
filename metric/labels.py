@@ -36,13 +36,14 @@ def grasp_success(env):
     """
     success = True
     object_quat0 = env.mj_data.qpos[11:].copy()  # 记录抓取前的物体姿态
-    env.step(np.array([0, 0, 0, 0, 0, 0, 10]), sleep=True)  # post-grasp the object to simulate the disturbance
-    object_quat1 = env.mj_data.qpos[11:].copy()
-    rot = R.from_quat(object_quat1[[1,2,3,0]]) * R.from_quat(object_quat0[[1,2,3,0]]).inv()  # 计算物体的旋转矩阵
+    # env.step(np.array([0, 0, 0, 0, 0, 0, 10]), sleep=True)  # post-grasp the object to simulate the disturbance
+    object_quat1 = np.array([0, 0, 0, -1])#env.mj_data.qpos[11:].copy()
+    rot = R.from_quat(object_quat1) * R.from_quat(object_quat0).inv()  # 计算物体的旋转矩阵
     angle_rad = rot.magnitude()  # 旋转弧度
     success = bool(angle_rad < 0.79)  # threshold need to be modified
 
-    if not contact_labels(env):
+    contact_hand, contact_floor = contact_labels(env)
+    if not contact_hand:
         success = False
         
     floor_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")

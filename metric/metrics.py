@@ -225,7 +225,7 @@ def calculate_our_metric(measurement):
         
         ratio = np.linalg.norm(measurement[i]["Ft_field"], axis=1) / (np.linalg.norm(measurement[i]["Fn_field"], axis=1) + 1e-6)
         
-        metric[i] = sum(ratio[F_mask]) / (sum(F_mask) * np.max(ratio[F_mask]))
+        metric[i] = sum(ratio[F_mask]) / (sum(F_mask))
 
         # metric[i] = np.sum(np.linalg.norm(measurement[i]["Ft_field"], axis=1)) / np.sum(np.linalg.norm(measurement[i]["Fn_field"], axis=1))
 
