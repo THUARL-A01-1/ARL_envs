@@ -86,7 +86,7 @@ def simulate(OBJECT_ID, num_samples=500):
             centroid = initial_centroid + np.array(measurement1[0]["object_pos"])
             our_metric, Fv = calculate_our_metric(measurement2)
             antipodal_metric, distance = calculate_antipodal_metric(measurement1, centroid)
-            closure_metric = calculate_closure_metric(measurement1, centroid, friction_coef)
+            closure_metric = calculate_closure_metric(measurement2, centroid, friction_coef)
 
             # post-grasp the object
             grasp_result = grasp_success(env)
@@ -114,7 +114,7 @@ def simulate(OBJECT_ID, num_samples=500):
                 "distance": distance,
                 "Fv": Fv.tolist()}
             
-            json_file = os.path.join(ROOT_DIR, f"results/{OBJECT_ID}/grasp_results.json")
+            json_file = os.path.join(ROOT_DIR, f"metric/results/{OBJECT_ID}/grasp_results.json")
             if not os.path.exists(json_file):
                 with open(json_file, "w", encoding="utf-8") as f:
                     f.write(json.dumps(result, ensure_ascii=False) + "\n")

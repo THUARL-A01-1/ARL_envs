@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # analyze_results(OBJECT_ID="all")
 
     import json
-    json_file = os.path.join(ROOT_DIR, f"results/{OBJECT_ID}/grasp_results.json")
+    json_file = os.path.join(ROOT_DIR, f"metric/results/{OBJECT_ID}/grasp_results.json")
     grasp_points, our_metrics, antipodal_metrics, closure_metrics = [], [], [], []
     with open(json_file, "r", encoding="utf-8") as f:
         for line in f:
