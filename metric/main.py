@@ -22,7 +22,7 @@ if __name__ == "__main__":
     for i in OBJECT_IDS:
         OBJECT_ID = f"{i:03d}"
         print(f"Simulating object {OBJECT_ID}...")
-        simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
+        # simulate(OBJECT_ID=OBJECT_ID, num_samples=200)
 
     # # Collect data for all objects in the dataset
     # for i in range(89):
@@ -41,27 +41,42 @@ if __name__ == "__main__":
 
     import json
     json_file = os.path.join(ROOT_DIR, f"metric/results/{OBJECT_ID}/grasp_results.json")
-    grasp_points, our_metrics, antipodal_metrics, closure_metrics = [], [], [], []
+    grasp_points, grasp_normals, our_metrics, antipodal_metrics, closure_metrics = [], [], [], [], []
     with open(json_file, "r", encoding="utf-8") as f:
         for line in f:
             data = json.loads(line)
             grasp_points.append(data["grasp_point"])
+            grasp_normals.append(data["grasp_normal"])
             our_metrics.append(sum(data["our_metric"]))
             antipodal_metrics.append(sum(data["antipodal_metric"]))
             closure_metrics.append(data["closure_metric"])
     
     import matplotlib.pyplot as plt
     import numpy as np
-    grasp_points = np.array(grasp_points)
-    plt.scatter(our_metrics, closure_metrics, c=antipodal_metrics, cmap='viridis', s=5)
-    plt.show()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    sc = ax.scatter(grasp_points[:, 0], grasp_points[:, 1], grasp_points[:, 2], c=our_metrics, cmap='viridis', s=5)
-    plt.colorbar(sc, label='our_metric')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
+    grasp_points, grasp_normals = np.array(grasp_points), np.array(grasp_normals)
+    # plt.scatter(our_metrics, closure_metrics, c=antipodal_metrics, cmap='viridis', s=5)
+    # plt.show()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # sc = ax.scatter(grasp_points[:, 0], grasp_points[:, 1], grasp_points[:, 2], c=our_metrics, cmap='viridis', s=5)
+    # plt.colorbar(sc, label='our_metric')
+    # ax.set_xlabel('X')
+    # ax.set_ylabel('Y')
+    # ax.set_zlabel('Z')
+    # plt.show()
+
+    # fit the point-normal and force closure metrics
+    from sklearn.linear_model import LinearRegression
+    X = np.column_stack((grasp_points, grasp_normals))
+    y = np.array(closure_metrics)
+    model = LinearRegression()
+    model.fit(X, y)
+    print(f"Coefficients: {model.coef_}")
+    print(f"Intercept: {model.intercept_}")
+    print(f"R^2 score: {model.score(X, y)}")
+    print(f"Mean absolute error: {np.mean(np.abs(model.predict(X) - y))}")
+    # Plot the predicted vs actual values
+    plt.scatter(y, model.predict(X), s=5)
     plt.show()
 
 

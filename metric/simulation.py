@@ -78,7 +78,7 @@ def simulate(OBJECT_ID, num_samples=500):
             #     # env.render()
             #     continue
     
-            if measurement1[0]["F_mask"].count(True) < 3 or measurement1[1]["F_mask"].count(True) < 3:  # Check if the contact is sufficient
+            if measurement2[0]["F_mask"].count(True) < 3 or measurement2[1]["F_mask"].count(True) < 3:  # Check if the contact is sufficient
                 print(f"Grasp {i+1}/{len(grasp_points)}: Insufficient contact, skipping...")
                 # env.replay()
                 continue
