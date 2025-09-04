@@ -1,4 +1,5 @@
 # Results
+*.egg-info
 metric/results/
 cad/assets/
 **/__pycache__/

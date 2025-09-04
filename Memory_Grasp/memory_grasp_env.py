@@ -13,7 +13,7 @@ from dexhand.dexhand import DexHandEnv
 import metric.interactions as interactions
 import metric.labels as labels
 import metric.metrics as metrics
-import RLgrasp.utils as utils
+import Memory_Grasp.utils as utils
 import random
 from pympler import asizeof
 
@@ -38,7 +38,7 @@ class MemoryGraspEnv(DexHandEnv):
         #     "current_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32)})
         self.observation_space = spaces.Box(low=0, high=255, shape=(1, 512, 512), dtype=np.uint8)
         self.action_buffer = []  # Buffer to store the action history
-        self.max_attempts = 10  # Maximum number of attempts to grasp the object
+        self.max_attempts = 100  # Maximum number of attempts to grasp the object
         self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
         self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in []]
         print("RLgrasp env initialized.")
@@ -47,7 +47,7 @@ class MemoryGraspEnv(DexHandEnv):
         """
         The reset method of the son class will reload the model.
         """
-        self.model_path = random.choice(self.scene_xml_list)
+        self.model_path = self.scene_xml_list[5]#random.choice(self.scene_xml_list)
         # self.model_path = self.scene_xml_list[1]
         print(f"RLgrasp env reset: {self.model_path}")
         self._release_model()  # Release the current model to avoid memory leak
@@ -121,9 +121,9 @@ class MemoryGraspEnv(DexHandEnv):
             # super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pos
         
         # Step 6: Set the hand to the initial qpos and get the next observation (image).
-        self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
-        self.mj_data.qvel[0:6] = 0  # Reset the joint velocities to zero
-        super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([-10])]))
+        self.mj_data.qpos[0:8] = 0  # Reset the joint positions to zero, including the finger drivers
+        self.mj_data.qvel[0:8] = 0  # Reset the joint velocities to zero, including the finger drivers
+        # super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([-10])]))
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
         observation = self.get_observation()
 

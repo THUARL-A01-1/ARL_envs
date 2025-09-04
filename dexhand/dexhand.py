@@ -33,7 +33,7 @@ class DexHandEnv(gym.Env):
             "segmentation": gym.spaces.Box(low=0, high=255, shape=(2, 512, 512), dtype=np.uint8),  # Segmentation image is a single channel image
             "tactile_left": gym.spaces.Box(low=-1, high=1, shape=(1200, ), dtype=np.float32),
             "tactile_right": gym.spaces.Box(low=-1, high=1, shape=(1200, ), dtype=np.float32),
-            "joint": gym.spaces.Box(low=-1, high=1, shape=(15, ), dtype=np.float32)}  # joint: 15D = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
+            "joint": gym.spaces.Box(low=-1, high=1, shape=(15, ), dtype=np.float32)}  # joint: self.mj_data.qpos(15D) = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
         )
 
         self._load_model(model_path)

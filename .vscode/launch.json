@@ -1,13 +1,13 @@
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Run metric.main as module",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "metric.main",
-            "cwd": "E:/2 - 3_Technical_material/Simulator/ARL_envs",
-            "console": "integratedTerminal"
-        }
-    ]
-}
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "Python: Run metric.main as module",
+//             "type": "debugpy",
+//             "request": "launch",
+//             "module": "metric.main",
+//             "cwd": "E:/2 - 3_Technical_material/Simulator/ARL_envs",
+//             "console": "integratedTerminal"
+//         }
+//     ]
+// }

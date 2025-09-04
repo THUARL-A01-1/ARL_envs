@@ -127,9 +127,9 @@ class RLGraspEnv(DexHandEnv):
             # super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pos
         
         # Step 6: Set the hand to the initial qpos and get the next observation (image).
-        self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
-        self.mj_data.qvel[0:6] = 0  # Reset the joint velocities to zero
-        super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([-10])]))
+        self.mj_data.qpos[0:8] = 0  # Reset the joint positions to zero, including the finger drivers
+        self.mj_data.qvel[0:8] = 0  # Reset the joint velocities to zero, including the finger drivers
+        # super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([-10])]))
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
         observation = self.get_observation()
 
