@@ -65,7 +65,7 @@ class MemoryGraspAgent:
         object_name = "test_object"  # TODO: self.tracker.recognize_object()
         print(f"Recognized object: {object_name}.")
         
-        memory_path = os.path.join("memory", f"{object_name}_memory.npy")
+        memory_path = os.path.join("Memory_Grasp/memory", f"{object_name}_memory.npy")
         memory = self.load_memory(memory_path)
         if memory is None:  # no memory yet
             print(f"No memory found for {object_name}. Setting anchor frame and initializing memory.")
