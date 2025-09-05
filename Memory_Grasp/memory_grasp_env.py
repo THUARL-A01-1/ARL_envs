@@ -1,24 +1,18 @@
-import cv2
 import gc
-import gymnasium as gym
 from gymnasium import spaces
-from io import BytesIO
-import mujoco
-import matplotlib.pyplot as plt
 import numpy as np
-import os
-import time
+import random
+from scipy.spatial.transform import Rotation as R
+
 # 从上一级目录导入DexHandEnv类
 from dexhand.dexhand import DexHandEnv
 import metric.interactions as interactions
 import metric.labels as labels
 import metric.metrics as metrics
 import Memory_Grasp.utils as utils
-import random
-from pympler import asizeof
 
 class MemoryGraspEnv(DexHandEnv):
-    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50), scene_id=1):
+    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50), scene_id=5):
         """
         RLGraspEnv is an implementation of the DexHandEnv + RL API + multiobject scene engineed by Mujoco, with API formulated based on Gym.
         RLGraspEnv rewrites the following important methods:
@@ -49,16 +43,17 @@ class MemoryGraspEnv(DexHandEnv):
         """
         self.model_path = self.scene_xml_list[5]#random.choice(self.scene_xml_list)
         # self.model_path = self.scene_xml_list[1]
-        print(f"RLgrasp env reset: {self.model_path}")
-        self._release_model()  # Release the current model to avoid memory leak
-        self._load_model(self.model_path)  # Load a new model from the scene XML file
+        # print(f"RLgrasp env reset: {self.model_path}")
+        # self._release_model()  # Release the current model to avoid memory leak
+        # self._load_model(self.model_path)  # Load a new model from the scene XML file
         super().reset()
         self.action_buffer = []  # Clear the action history buffer
 
-        self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
         self.mj_data.qpos[8:10] = np.random.uniform(-0.2, 0.2, size=2)  # Randomly set the object position
-        self.mj_data.qpos[11:14] = np.random.uniform(-np.pi, np.pi, size=3)  # Randomly set the object orientation
-        self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
+        # self.mj_data.qpos[11:14] = np.random.uniform(-np.pi, np.pi, size=3)  # Randomly set the object orientation
+        random_xyzw = R.random().as_quat()  # Randomly set the object orientation
+        random_wxyz = np.array([random_xyzw[3], random_xyzw[0], random_xyzw[1], random_xyzw[2]])
+        self.mj_data.qpos[11:15] = random_wxyz
 
         super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
 
@@ -83,7 +78,7 @@ class MemoryGraspEnv(DexHandEnv):
 
         :return: A 5-item tuple containing the observation, reward, done flag, truncated flag and info dictionary.
         """
-        hand_offsest = 0.165 - 0.0001  # 0.01 for more stable grasping
+        hand_offsest = 0.175 - 0.0001  # 0.01 for more stable grasping
         approach_offset = 0.4  # The offset distance from the grasp point to the approach position
         lift_height = 0.03
 

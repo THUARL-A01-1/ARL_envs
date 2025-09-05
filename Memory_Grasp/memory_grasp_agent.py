@@ -74,12 +74,12 @@ class MemoryGraspAgent:
             anchor_action = self.choose_action_from_random(self.candidate_actions)
         else:  # already have memory
             print(f"Loaded memory for {object_name}, shape: {memory.shape}.")
-            if np.max(memory[:, -1]) > -0.7 and np.random.random() > 0.5:  # if max reward > 1.0, use memory to choose action
+            if np.random.random() < 1.3 + np.max(memory[:, -1]):  # use max reward to adjust the greedy threshold
                 anchor_action = self.choose_action_from_memory(memory, top_k=1)
             else:
                 anchor_action = self.choose_action_from_random(self.candidate_actions)
         
-        print(f"Chosen action in anchor frame:\n{anchor_action}.")
+        # print(f"Chosen action in anchor frame:\n{anchor_action}.")
         anchor_grasp_pose, anchor_approach_vector, alpha, grasp_force = anchor_action[0:3], anchor_action[3:6], anchor_action[6], anchor_action[7]
         
         # TODO: anchor2camera = self.tracker.track_one_frame(object_name)
@@ -88,13 +88,13 @@ class MemoryGraspAgent:
         anchor2camera = np.eye(4)
         anchor2camera[0:3, 0:3] = rotation_matrix
         anchor2camera[0:3, 3] = translation
-        print(f"Tracked one frame for {object_name}, anchor2camera:\n{anchor2camera}.")
+        # print(f"Tracked one frame for {object_name}, anchor2camera:\n{anchor2camera}.")
 
         anchor2base = np.dot(self.camera2base, anchor2camera)
         grasp_pose = anchor_grasp_pose + anchor2base[0:3, 3]
         approach_vector = np.array([0,0,1])#anchor_approach_vector @ anchor2base[0:3, 0:3]
         action = np.hstack((grasp_pose, approach_vector, alpha, grasp_force))
-        print(f"Chosen action in base frame:\n{action}.")
+        # print(f"Chosen action in base frame:\n{action}.")
 
         observation, reward, done, truncated, info = self.env.step(action)
         print(f"Executed action, received reward: {reward}, done: {done}, truncated: {truncated}.")
@@ -102,6 +102,7 @@ class MemoryGraspAgent:
         if reward > -1.0:
             self.save_memory(memory, anchor_action, reward, memory_path)
             print(f"Saved updated memory for {object_name} with reward: {reward}.")
+            self.env.reset()
 
 def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
     # Load the point cloud

@@ -1,13 +1,8 @@
-import cv2
 import gc
-import gymnasium as gym
 from gymnasium import spaces
-from io import BytesIO
-import mujoco
-import matplotlib.pyplot as plt
 import numpy as np
-import os
-import time
+from scipy.spatial.transform import Rotation as R
+
 # 从上一级目录导入DexHandEnv类
 from dexhand.dexhand import DexHandEnv
 import metric.interactions as interactions
@@ -15,7 +10,6 @@ import metric.labels as labels
 import metric.metrics as metrics
 import RLgrasp.utils as utils
 import random
-from pympler import asizeof
 
 class RLGraspEnv(DexHandEnv):
     def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50), scene_id=1):
@@ -57,7 +51,10 @@ class RLGraspEnv(DexHandEnv):
 
         self.mj_data.qpos[0:6] = 0  # Reset the joint positions to zero
         self.mj_data.qpos[8:10] = np.random.uniform(-0.2, 0.2, size=2)  # Randomly set the object position
-        self.mj_data.qpos[11:14] = np.random.uniform(-np.pi, np.pi, size=3)  # Randomly set the object orientation
+        # self.mj_data.qpos[11:14] = np.random.uniform(-np.pi, np.pi, size=3)  # Randomly set the object orientation
+        random_xyzw = R.random().as_quat()  # Randomly set the object orientation
+        random_wxyz = np.array([random_xyzw[3], random_xyzw[0], random_xyzw[1], random_xyzw[2]])
+        self.mj_data.qpos[11:15] = random_wxyz
         self.mj_data.qvel[:] = 0  # Reset the joint velocities to zero
 
         super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
