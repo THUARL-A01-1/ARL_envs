@@ -1,5 +1,6 @@
 from cad.grasp_sampling import sample_grasp_point, sample_grasp_normal, sample_grasp_angle, sample_grasp_depth, sample_grasp_collision, initialize_gripper, visualize_grasp
 from Memory_Grasp.memory_grasp_env import MemoryGraspEnv
+from Memory_Grasp.client import Client
 import numpy as np
 import open3d as o3d
 import os
@@ -15,7 +16,8 @@ class MemoryGraspAgent:
         - base frame: the robot base frame
     """
     def __init__(self):
-        self.tracker = None  # Any6DTracker()
+        self.clip_client = Client(server='clip', timeout=10.0)
+        self.any6d_client = Client(server='any6d', timeout=10.0)
         self.camera2base = np.eye(4)  # camera2base transformation matrix
         self.env = MemoryGraspEnv(render_mode="human")
         self.env.reset()
@@ -52,6 +54,36 @@ class MemoryGraspAgent:
         
         return chosen_action
     
+    def get_object_name(self):
+        # Use CLIP to recognize the object
+        color = self.env.render()
+        response = self.clip_client(color=color)
+        if response is None:
+            print("Error in CLIP client.")
+            return None
+        object_name = response[0]
+
+        return object_name
+    
+    def transform_action(self, anchor_action):
+        anchor_grasp_pose, anchor_approach_vector, alpha, grasp_force = anchor_action[0:3], anchor_action[3:6], anchor_action[6], anchor_action[7]
+        # TODO: anchor2camera = self.tracker.track_one_frame(object_name)
+
+        translation, rotation_wxyz = self.env.mj_data.qpos[8:11], self.env.mj_data.qpos[11:15]
+        rotation_matrix = R.from_quat(np.array([rotation_wxyz[1], rotation_wxyz[2], rotation_wxyz[3], rotation_wxyz[0]])).as_matrix()
+        anchor2camera = np.eye(4)
+        anchor2camera[0:3, 0:3] = rotation_matrix
+        anchor2camera[0:3, 3] = translation
+        # print(f"Tracked one frame for {object_name}, anchor2camera:\n{anchor2camera}.")
+
+        anchor2base = np.dot(self.camera2base, anchor2camera)
+        grasp_pose = anchor_grasp_pose + anchor2base[0:3, 3]
+        approach_vector = np.array([0,0,1])#anchor_approach_vector @ anchor2base[0:3, 0:3]
+        action = np.hstack((grasp_pose, approach_vector, alpha, grasp_force))
+        # print(f"Chosen action in base frame:\n{action}.")
+
+        return action
+
     def run_one_turn(self):
         """
         A decision-interaction step:
@@ -63,6 +95,7 @@ class MemoryGraspAgent:
         6. save memory
         """
         object_name = "test_object"  # TODO: self.tracker.recognize_object()
+        # object_name = self.get_object_name()
         print(f"Recognized object: {object_name}.")
         
         memory_path = os.path.join("Memory_Grasp/memory", f"{object_name}_memory.npy")
@@ -80,21 +113,7 @@ class MemoryGraspAgent:
                 anchor_action = self.choose_action_from_random(self.candidate_actions)
         
         # print(f"Chosen action in anchor frame:\n{anchor_action}.")
-        anchor_grasp_pose, anchor_approach_vector, alpha, grasp_force = anchor_action[0:3], anchor_action[3:6], anchor_action[6], anchor_action[7]
-        
-        # TODO: anchor2camera = self.tracker.track_one_frame(object_name)
-        translation, rotation_wxyz = self.env.mj_data.qpos[8:11], self.env.mj_data.qpos[11:15]
-        rotation_matrix = R.from_quat(np.array([rotation_wxyz[1], rotation_wxyz[2], rotation_wxyz[3], rotation_wxyz[0]])).as_matrix()
-        anchor2camera = np.eye(4)
-        anchor2camera[0:3, 0:3] = rotation_matrix
-        anchor2camera[0:3, 3] = translation
-        # print(f"Tracked one frame for {object_name}, anchor2camera:\n{anchor2camera}.")
-
-        anchor2base = np.dot(self.camera2base, anchor2camera)
-        grasp_pose = anchor_grasp_pose + anchor2base[0:3, 3]
-        approach_vector = np.array([0,0,1])#anchor_approach_vector @ anchor2base[0:3, 0:3]
-        action = np.hstack((grasp_pose, approach_vector, alpha, grasp_force))
-        # print(f"Chosen action in base frame:\n{action}.")
+        action = self.transform_action(anchor_action)
 
         observation, reward, done, truncated, info = self.env.step(action)
         print(f"Executed action, received reward: {reward}, done: {done}, truncated: {truncated}.")

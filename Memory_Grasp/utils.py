@@ -2,7 +2,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 
-def transform_action(action, hand_offset, approach_offset):
+def encode_action(action, hand_offset, approach_offset):
     """
     Transform the 8D action to the target position and rotation of the hand.
     The action is in the form of a 8D vector:

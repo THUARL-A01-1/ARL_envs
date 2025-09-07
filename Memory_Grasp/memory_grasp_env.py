@@ -85,7 +85,7 @@ class MemoryGraspEnv(DexHandEnv):
         # Step 0: get the depth_image with object segmentation mask.
         self.action_buffer.append(action)
         
-        approach_pos, target_rot, target_pos, target_force = utils.transform_action(action, hand_offsest, approach_offset)
+        approach_pos, target_rot, target_pos, target_force = utils.encode_action(action, hand_offsest, approach_offset)
         if approach_pos is None:
             print(f"From {self.model_path}: Error in transforming action")
             return self.get_observation(), -1.0 * self.max_attempts, True, True, {}

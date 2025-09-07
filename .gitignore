@@ -1,7 +1,9 @@
 # Results
 *.egg-info
+*.mp4
 metric/results/
 cad/assets/
+Memory_Grasp/memory/
 **/__pycache__/
 **/logs/
 /MUJOCO_LOG.TXT
