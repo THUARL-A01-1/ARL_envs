@@ -3,7 +3,7 @@
 *.mp4
 **/results/
 cad/assets/
-Memory_Grasp/memory/
+**/memory/
 **/__pycache__/
 **/logs/
 /MUJOCO_LOG.TXT

@@ -43,11 +43,11 @@ class MemoryGraspEnv(DexHandEnv):
         """
         The reset method of the son class will reload the model.
         """
-        self.model_path = self.scene_xml_list[5]#random.choice(self.scene_xml_list)
+        # self.model_path = self.scene_xml_list[5]#random.choice(self.scene_xml_list)
         # self.model_path = self.scene_xml_list[1]
         # print(f"RLgrasp env reset: {self.model_path}")
-        # self._release_model()  # Release the current model to avoid memory leak
-        # self._load_model(self.model_path, resolution=(480, 640))  # Load a new model from the scene XML file
+        self._release_model()  # Release the current model to avoid memory leak
+        self._load_model(self.model_path, resolution=(480, 640))  # Load a new model from the scene XML file
         super().reset()
         self.action_buffer = []  # Clear the action history buffer
 
