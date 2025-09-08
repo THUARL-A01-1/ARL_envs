@@ -1,4 +1,6 @@
 from cad.grasp_sampling import sample_grasp_point, sample_grasp_normal, sample_grasp_angle, sample_grasp_depth, sample_grasp_collision, initialize_gripper, visualize_grasp
+import cv2
+import matplotlib.pyplot as plt
 from Memory_Grasp.memory_grasp_env import MemoryGraspEnv
 from Memory_Grasp.server_test import send_image_to_server
 import numpy as np
@@ -53,12 +55,19 @@ class MemoryGraspAgent:
         
         return chosen_action
     
-    def get_object_name(self):
-        # Use CLIP to recognize the object
+    def get_imgs(self):
         self.env.mj_renderer_rgb.update_scene(self.env.mj_data, camera="main")
         self.env.mj_renderer_depth.update_scene(self.env.mj_data, camera="main")
-        color = self.env.mj_renderer_rgb.render().transpose(2, 0, 1).astype(np.uint8)
-        depth = np.expand_dims(self.env.mj_renderer_depth.render() * 255, axis=0).astype(np.uint8)
+        color = self.env.mj_renderer_rgb.render().astype(np.uint8)
+        color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
+        depth = (self.env.mj_renderer_depth.render() * 1000).astype(np.float32)
+        # TODO: adjust the relative params.
+        
+        return color, depth
+
+    def get_object_name(self):
+        # Use CLIP to recognize the object
+        color, depth = self.get_imgs()
         object_name = send_image_to_server(color, None, None, None, SERVER_IP, server_name="clip")
         if object_name is None:
             print("Error in CLIP client.")
@@ -68,8 +77,7 @@ class MemoryGraspAgent:
     
     def set_anchor(self, object_name):
         # Use Any6D to set the anchor frame
-        color = self.env.render()
-        depth = self.env.render(mode="depth")
+        color, depth = self.get_imgs()
         anchor2camera = send_image_to_server(color, depth, object_name, "anchor", SERVER_IP, "any6d")
         if anchor2camera is None:
             print("Error in Any6D client.")
@@ -78,8 +86,7 @@ class MemoryGraspAgent:
 
     def get_anchor2camera(self, object_name):
         # Use Any6D to get the object pose
-        color = self.env.render()
-        depth = self.env.render(mode="depth")
+        color, depth = self.get_imgs()
         anchor2camera = send_image_to_server(color, depth, object_name, "query", SERVER_IP, "any6d")
         if anchor2camera is None:
             print("Error in Any6D client.")
@@ -189,6 +196,10 @@ def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
 
 if __name__ == "__main__":
     agent = MemoryGraspAgent()
-    for i in range(100):
-        print(f"--- Running turn {i+1} ---")
-        agent.run_one_turn()
+    color, depth = agent.get_imgs()
+    print(f"Color image shape: {color.shape}, Depth image shape: {depth.shape}.")
+    cv2.imwrite("./Memory_Grasp/results/debug/color.png", color)
+    cv2.imwrite("./Memory_Grasp/results/debug/depth.png", depth)
+    # for i in range(100):
+    #     print(f"--- Running turn {i+1} ---")
+    #     agent.run_one_turn()

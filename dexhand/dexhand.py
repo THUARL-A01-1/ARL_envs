@@ -10,7 +10,7 @@ import os
 import time
 
 class DexHandEnv(gym.Env):
-    def __init__(self, model_path="RLgrasp/scene.xml", render_mode="rgb_array"):
+    def __init__(self, model_path="RLgrasp/scene.xml", render_mode="rgb_array", resolution=(512, 512)):
         """
         DexHandEnv is an implementation of the DexHand + Tac3D engineed by Mujoco, with API formulated based on Gym.
         DexHandEnv supports the following important methods:
@@ -36,9 +36,9 @@ class DexHandEnv(gym.Env):
             "joint": gym.spaces.Box(low=-1, high=1, shape=(15, ), dtype=np.float32)}  # joint: self.mj_data.qpos(15D) = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
         )
 
-        self._load_model(model_path)
+        self._load_model(model_path, resolution)
     
-    def _load_model(self, model_path):
+    def _load_model(self, model_path, resolution):
         """ Load the Mujoco model from the XML file.
         """
         self.model_path = model_path
@@ -47,10 +47,11 @@ class DexHandEnv(gym.Env):
             print(f"Reading xml: {self.model_path}.")
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
-        self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, 512, 512)
-        self.mj_renderer_depth = mujoco.Renderer(self.mj_model, 512, 512)
+        height, width = resolution
+        self.mj_renderer_rgb = mujoco.Renderer(self.mj_model, height, width)
+        self.mj_renderer_depth = mujoco.Renderer(self.mj_model, height, width)
         self.mj_renderer_depth.enable_depth_rendering()
-        self.mj_renderer_segmentation = mujoco.Renderer(self.mj_model, 512, 512)
+        self.mj_renderer_segmentation = mujoco.Renderer(self.mj_model, height, width)
         self.mj_renderer_segmentation.enable_segmentation_rendering()
         self.mj_viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data) if self.render_mode == "human" else None
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}

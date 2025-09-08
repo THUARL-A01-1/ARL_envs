@@ -1,5 +1,6 @@
 import gc
 from gymnasium import spaces
+import mujoco
 import numpy as np
 import random
 from scipy.spatial.transform import Rotation as R
@@ -25,12 +26,13 @@ class MemoryGraspEnv(DexHandEnv):
         grasp_mode (str): The grasp mode, can be "free" (0-3N) or "fixed_force" (3N). Default is "free".
         scene_range (list): The scene.xml range that is being randomized. e.g.: 0-50 for training and 50-88 for evaluation.
         """
-        super().__init__(model_path=f"RLgrasp/scenes/{scene_id:03d}.xml", render_mode=render_mode)
+        super().__init__(model_path=f"RLgrasp/scenes/{scene_id:03d}.xml", render_mode=render_mode, resolution=(480, 640))
         # self.observation_space = spaces.Dict({
         #     "history_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32),
         #     "history_action": spaces.Box(low=-1, high=1, shape=(7, ), dtype=np.float32),
         #     "current_depth": spaces.Box(low=0, high=1, shape=(1, 512, 512), dtype=np.float32)})
-        self.observation_space = spaces.Box(low=0, high=255, shape=(1, 512, 512), dtype=np.uint8)
+
+        self.observation_space = spaces.Box(low=0, high=255, shape=(480, 640, 1), dtype=np.uint8)
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 100  # Maximum number of attempts to grasp the object
         self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
@@ -50,7 +52,6 @@ class MemoryGraspEnv(DexHandEnv):
         self.action_buffer = []  # Clear the action history buffer
 
         self.mj_data.qpos[8:10] = np.random.uniform(-0.2, 0.2, size=2)  # Randomly set the object position
-        # self.mj_data.qpos[11:14] = np.random.uniform(-np.pi, np.pi, size=3)  # Randomly set the object orientation
         random_xyzw = R.random().as_quat()  # Randomly set the object orientation
         random_wxyz = np.array([random_xyzw[3], random_xyzw[0], random_xyzw[1], random_xyzw[2]])
         self.mj_data.qpos[11:15] = random_wxyz
