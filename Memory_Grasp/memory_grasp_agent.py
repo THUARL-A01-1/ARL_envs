@@ -1,10 +1,11 @@
 from cad.grasp_sampling import sample_grasp_point, sample_grasp_normal, sample_grasp_angle, sample_grasp_depth, sample_grasp_collision, initialize_gripper, visualize_grasp
 from Memory_Grasp.memory_grasp_env import MemoryGraspEnv
-from Memory_Grasp.client import Client
+from Memory_Grasp.server_test import send_image_to_server
 import numpy as np
 import open3d as o3d
 import os
 from scipy.spatial.transform import Rotation as R
+SERVER_IP = "183.173.80.82"
 
 
 class MemoryGraspAgent:
@@ -16,8 +17,6 @@ class MemoryGraspAgent:
         - base frame: the robot base frame
     """
     def __init__(self):
-        self.clip_client = Client(server='clip', timeout=10.0)
-        self.any6d_client = Client(server='any6d', timeout=10.0)
         self.camera2base = np.eye(4)  # camera2base transformation matrix
         self.env = MemoryGraspEnv(render_mode="human")
         self.env.reset()
@@ -56,18 +55,42 @@ class MemoryGraspAgent:
     
     def get_object_name(self):
         # Use CLIP to recognize the object
-        color = self.env.render()
-        response = self.clip_client(color=color)
-        if response is None:
+        self.env.mj_renderer_rgb.update_scene(self.env.mj_data, camera="main")
+        self.env.mj_renderer_depth.update_scene(self.env.mj_data, camera="main")
+        color = self.env.mj_renderer_rgb.render().transpose(2, 0, 1).astype(np.uint8)
+        depth = np.expand_dims(self.env.mj_renderer_depth.render() * 255, axis=0).astype(np.uint8)
+        object_name = send_image_to_server(color, None, None, None, SERVER_IP, server_name="clip")
+        if object_name is None:
             print("Error in CLIP client.")
             return None
-        object_name = response[0]
 
         return object_name
     
-    def transform_action(self, anchor_action):
+    def set_anchor(self, object_name):
+        # Use Any6D to set the anchor frame
+        color = self.env.render()
+        depth = self.env.render(mode="depth")
+        anchor2camera = send_image_to_server(color, depth, object_name, "anchor", SERVER_IP, "any6d")
+        if anchor2camera is None:
+            print("Error in Any6D client.")
+            return None
+        pass
+
+    def get_anchor2camera(self, object_name):
+        # Use Any6D to get the object pose
+        color = self.env.render()
+        depth = self.env.render(mode="depth")
+        anchor2camera = send_image_to_server(color, depth, object_name, "query", SERVER_IP, "any6d")
+        if anchor2camera is None:
+            print("Error in Any6D client.")
+            return None
+
+        return anchor2camera
+    
+    def transform_action(self, anchor_action, object_name):
         anchor_grasp_pose, anchor_approach_vector, alpha, grasp_force = anchor_action[0:3], anchor_action[3:6], anchor_action[6], anchor_action[7]
         # TODO: anchor2camera = self.tracker.track_one_frame(object_name)
+        # anchor2camera = self.get_anchor2camera(object_name)
 
         translation, rotation_wxyz = self.env.mj_data.qpos[8:11], self.env.mj_data.qpos[11:15]
         rotation_matrix = R.from_quat(np.array([rotation_wxyz[1], rotation_wxyz[2], rotation_wxyz[3], rotation_wxyz[0]])).as_matrix()
@@ -102,7 +125,7 @@ class MemoryGraspAgent:
         memory = self.load_memory(memory_path)
         if memory is None:  # no memory yet
             print(f"No memory found for {object_name}. Setting anchor frame and initializing memory.")
-            # self.tracker.set_anchor(object_name)
+            # self.set_anchor(object_name)
             self.candidate_actions = generate_candidate_actions(num_samples=30)
             anchor_action = self.choose_action_from_random(self.candidate_actions)
         else:  # already have memory
@@ -113,7 +136,7 @@ class MemoryGraspAgent:
                 anchor_action = self.choose_action_from_random(self.candidate_actions)
         
         # print(f"Chosen action in anchor frame:\n{anchor_action}.")
-        action = self.transform_action(anchor_action)
+        action = self.transform_action(anchor_action, object_name)
 
         observation, reward, done, truncated, info = self.env.step(action)
         print(f"Executed action, received reward: {reward}, done: {done}, truncated: {truncated}.")

@@ -1,7 +1,7 @@
 # Results
 *.egg-info
 *.mp4
-metric/results/
+**/results/
 cad/assets/
 Memory_Grasp/memory/
 **/__pycache__/
