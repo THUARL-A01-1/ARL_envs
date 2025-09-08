@@ -196,10 +196,16 @@ def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
 
 if __name__ == "__main__":
     agent = MemoryGraspAgent()
-    color, depth = agent.get_imgs()
-    print(f"Color image shape: {color.shape}, Depth image shape: {depth.shape}.")
-    cv2.imwrite("./Memory_Grasp/results/debug/color.png", color)
-    cv2.imwrite("./Memory_Grasp/results/debug/depth.png", depth)
-    # for i in range(100):
-    #     print(f"--- Running turn {i+1} ---")
-    #     agent.run_one_turn()
+    # for i in range(37, 47):
+    #     print(f"--- Resetting environment {i} ---")
+    #     agent.env.model_path = f"RLgrasp/scenes/{i:03d}.xml"
+    #     agent.env.reset()
+
+    # color, depth = agent.get_imgs()
+    # print(f"Color image shape: {color.shape}, Depth image shape: {depth.shape}.")
+    # cv2.imwrite("./Memory_Grasp/results/debug/color.png", color)
+    # cv2.imwrite("./Memory_Grasp/results/debug/depth.png", depth)
+    for i in range(100):
+        print(f"--- Running turn {i+1} ---")
+        agent.run_one_turn()
+

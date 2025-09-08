@@ -38,7 +38,7 @@ class DexHandEnv(gym.Env):
 
         self._load_model(model_path, resolution)
     
-    def _load_model(self, model_path, resolution):
+    def _load_model(self, model_path, resolution=(512, 512)):
         """ Load the Mujoco model from the XML file.
         """
         self.model_path = model_path
