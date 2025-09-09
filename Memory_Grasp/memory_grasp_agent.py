@@ -22,6 +22,7 @@ class MemoryGraspAgent:
         self.camera2base = np.eye(4)  # camera2base transformation matrix
         self.env = MemoryGraspEnv(render_mode="human")
         self.env.reset()
+        self.anchor_candidate_actions = generate_candidate_actions(num_samples=300)
         pass
 
     def load_memory(self, memory_path):
@@ -37,23 +38,37 @@ class MemoryGraspAgent:
         if memory is None:  # no memory yet
             os.mkdir(os.path.dirname(memory_path))
             memory = np.array([np.hstack((anchor_action, reward))])
+        elif anchor_action is None:  # just save the existing memory
+            pass
         else:  # already have memory
             memory = np.vstack((memory, np.hstack((anchor_action, reward))))
         np.save(memory_path, memory)
         pass
         
     def choose_action_from_memory(self, memory, top_k=5):
-        # Choose the action with the highest reward
-        sorted_memory = memory[memory[:, -1].argsort()[::-1]]
-        top_actions = sorted_memory[:top_k, :-1]
-        chosen_action = top_actions[np.random.randint(0, top_k)]
+        # Choose the action with the highest reward from memory with memory[:, 5] > 0.97
+        valid_idx = np.where(memory[:, 5] > 0.97)[0]
+        if len(valid_idx) == 0:
+            print("No valid memory found. Choosing a best-reward action from all memory.")
+            action_id = np.argmax(memory[:, -1])
+        else:
+            top_k = min(top_k, len(valid_idx))
+            top_k_idx = np.argsort(memory[valid_idx, -1])[-top_k:]
+            action_id = valid_idx[top_k_idx[np.random.randint(0, top_k)]]
 
-        return chosen_action
+        return action_id
     
     def choose_action_from_random(self, candidate_actions):
-        chosen_action = candidate_actions[np.random.randint(0, len(candidate_actions))]
+        # choose a random action_id from candidate_actions with candidate_actions[:, 5] > 0.97
+
+        valid_idx = np.where(candidate_actions[:, 5] > 0.97)[0]
+        if len(valid_idx) == 0:
+            print("No valid candidate actions found. Choosing a random action from all candidates.")
+            action_id = np.random.randint(0, len(candidate_actions))
+        else:
+            action_id = valid_idx[np.random.randint(0, len(valid_idx))]
         
-        return chosen_action
+        return action_id
     
     def get_imgs(self):
         self.env.mj_renderer_rgb.update_scene(self.env.mj_data, camera="main")
@@ -84,35 +99,32 @@ class MemoryGraspAgent:
             return None
         pass
 
-    def get_anchor2camera(self, object_name):
-        # Use Any6D to get the object pose
-        color, depth = self.get_imgs()
-        anchor2camera = send_image_to_server(color, depth, object_name, "query", SERVER_IP, "any6d")
-        if anchor2camera is None:
-            print("Error in Any6D client.")
-            return None
-
-        return anchor2camera
-    
-    def transform_action(self, anchor_action, object_name):
-        anchor_grasp_pose, anchor_approach_vector, alpha, grasp_force = anchor_action[0:3], anchor_action[3:6], anchor_action[6], anchor_action[7]
-        # TODO: anchor2camera = self.tracker.track_one_frame(object_name)
-        # anchor2camera = self.get_anchor2camera(object_name)
-
+    def get_anchor2base(self, object_name):
+        # get ground truth from simulator
         translation, rotation_wxyz = self.env.mj_data.qpos[8:11], self.env.mj_data.qpos[11:15]
         rotation_matrix = R.from_quat(np.array([rotation_wxyz[1], rotation_wxyz[2], rotation_wxyz[3], rotation_wxyz[0]])).as_matrix()
         anchor2camera = np.eye(4)
         anchor2camera[0:3, 0:3] = rotation_matrix
         anchor2camera[0:3, 3] = translation
-        # print(f"Tracked one frame for {object_name}, anchor2camera:\n{anchor2camera}.")
+
+        # # Use Any6D to get the object pose
+        # color, depth = self.get_imgs()
+        # anchor2camera = send_image_to_server(color, depth, object_name, "query", SERVER_IP, "any6d")
+        # if anchor2camera is None:
+        #     print("Error in Any6D client.")
+        #     return None
 
         anchor2base = np.dot(self.camera2base, anchor2camera)
-        grasp_pose = anchor_grasp_pose + anchor2base[0:3, 3]
-        approach_vector = np.array([0,0,1])#anchor_approach_vector @ anchor2base[0:3, 0:3]
-        action = np.hstack((grasp_pose, approach_vector, alpha, grasp_force))
-        # print(f"Chosen action in base frame:\n{action}.")
 
-        return action
+        return anchor2base
+    
+    def transform_action(self, actions, anchor2base):
+        grasp_poses, approach_vectors, alphas, grasp_forces = actions[:, 0:3], actions[:, 3:6], actions[:, 6:7], actions[:, 7:8]
+        grasp_poses = np.dot(anchor2base[0:3, 0:3], grasp_poses.T).T + anchor2base[0:3, 3]
+        approach_vectors = np.dot(anchor2base[0:3, 0:3], approach_vectors.T).T
+        actions = np.hstack((grasp_poses, approach_vectors, alphas, grasp_forces))
+
+        return actions
 
     def run_one_turn(self):
         """
@@ -127,30 +139,51 @@ class MemoryGraspAgent:
         object_name = "test_object"  # TODO: self.tracker.recognize_object()
         # object_name = self.get_object_name()
         print(f"Recognized object: {object_name}.")
+
+        anchor2base = self.get_anchor2base(object_name)  # get the object pose
+        candidate_actions = self.transform_action(self.anchor_candidate_actions.copy(), anchor2base)  # transform candidate actions to current object pose
+        action_from = "random"
         
         memory_path = os.path.join("Memory_Grasp/memory", f"{object_name}_memory.npy")
-        memory = self.load_memory(memory_path)
-        if memory is None:  # no memory yet
+        anchor_memory = self.load_memory(memory_path)
+        if anchor_memory is None:  # no memory yet
             print(f"No memory found for {object_name}. Setting anchor frame and initializing memory.")
             # self.set_anchor(object_name)
-            self.candidate_actions = generate_candidate_actions(num_samples=30)
-            anchor_action = self.choose_action_from_random(self.candidate_actions)
-        else:  # already have memory
-            print(f"Loaded memory for {object_name}, shape: {memory.shape}.")
-            if np.random.random() < 1.3 + np.max(memory[:, -1]):  # use max reward to adjust the greedy threshold
-                anchor_action = self.choose_action_from_memory(memory, top_k=1)
-            else:
-                anchor_action = self.choose_action_from_random(self.candidate_actions)
+            action_id = self.choose_action_from_random(candidate_actions)
+            action = candidate_actions[action_id]
         
-        # print(f"Chosen action in anchor frame:\n{anchor_action}.")
-        action = self.transform_action(anchor_action, object_name)
+        else:  # already have memory
+            memory = anchor_memory.copy()
+            memory[:, :-1] = self.transform_action(anchor_memory[:, :-1].copy(), anchor2base)  # transform memory to current object pose
+            valid_memory_idx = np.where(memory[:, 5] > 0.97)[0]
+            # print(f"Loaded memory for {object_name}, shape: {memory.shape}.")
+            
+            if np.random.random() < 1.0 + np.max(memory[:, -1]) and len(valid_memory_idx) > 0:  # use max reward to adjust the greedy threshold
+                action_id = self.choose_action_from_memory(memory, top_k=5)
+                action = memory[action_id]
+                action_from = "memory"
+                print(f"Chose action from memory.")
+            else:
+                action_id = self.choose_action_from_random(candidate_actions)
+                action = candidate_actions[action_id]
+                print(f"Chose action from random.")
 
         observation, reward, done, truncated, info = self.env.step(action)
         print(f"Executed action, received reward: {reward}, done: {done}, truncated: {truncated}.")
+        anchor2base = self.get_anchor2base(object_name)  # get the updated object pose
+        anchor_action = self.transform_action(action[np.newaxis, :].copy(), np.linalg.inv(anchor2base))[0]  # transform action to anchor frame
+        
+        if action_from == "memory" and reward == -1.0:
+            print(f"Warning: action from memory resulted in failure. Delete this memory.")
+            anchor_memory = np.delete(anchor_memory, action_id, axis=0)
+            self.save_memory(anchor_memory, None, reward, memory_path)
+
+        if action_from == "random" and reward > -1.0:
+            print(f"Saved updated memory for {object_name} with reward: {reward}.")
+            self.save_memory(anchor_memory, anchor_action, reward, memory_path)
         
         if reward > -1.0:
-            self.save_memory(memory, anchor_action, reward, memory_path)
-            print(f"Saved updated memory for {object_name} with reward: {reward}.")
+            print(f"Successful grasp! Resetting the environment.")
             self.env.reset()
 
 def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
@@ -167,12 +200,13 @@ def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
     grasp_points, grasp_normals, grasp_angles, grasp_depths = [], [], [], []
     while len(grasp_points) < num_samples:
         try:
-            grasp_points_sample = sample_grasp_point(point_cloud, 30 * num_samples) # 根据经验，每次采样30倍的数量
-            grasp_normals_sample = sample_grasp_normal(30 * num_samples)
-            grasp_angles_sample = sample_grasp_angle(30 * num_samples)
-            grasp_depths_sample = sample_grasp_depth(30 * num_samples)
+            grasp_points_sample = sample_grasp_point(point_cloud, 10 * num_samples) # 根据经验，每次采样10倍的数量
+            grasp_normals_sample = sample_grasp_normal(10 * num_samples)
+            # grasp_normals_sample[:, 0], grasp_normals_sample[:, 1], grasp_normals_sample[:, 2] = 0.0, 0.0, 1.0  # force the approach vector to be vertical
+            grasp_angles_sample = sample_grasp_angle(10 * num_samples)
+            grasp_depths_sample = sample_grasp_depth(10 * num_samples, min_depth=-1e-2, max_depth=-1e-3) - 0.01
             grasp_collisions_sample = sample_grasp_collision(point_cloud, grasp_points_sample, grasp_normals_sample, grasp_angles_sample, grasp_depths_sample, initialize_gripper())
-            print(f"Sampled {30 * num_samples} grasps, with {sum(grasp_collisions_sample)} collisions detected.")
+            print(f"Sampled {10 * num_samples} grasps, with {sum(grasp_collisions_sample)} collisions detected.")
             grasp_points.extend(grasp_points_sample[np.logical_not(grasp_collisions_sample)])
             grasp_normals.extend(grasp_normals_sample[np.logical_not(grasp_collisions_sample)])
             grasp_angles.extend(grasp_angles_sample[np.logical_not(grasp_collisions_sample)])
@@ -196,16 +230,13 @@ def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
 
 if __name__ == "__main__":
     agent = MemoryGraspAgent()
-    for i in range(47, 57):
-        print(f"--- Resetting environment {i} ---")
-        agent.env.model_path = f"RLgrasp/scenes/{i:03d}.xml"
-        agent.env.reset()
-
+    
+    for i in range(50):
+        print(f"--- Running turn {i+1} ---")
+        agent.run_one_turn()
+        
     # color, depth = agent.get_imgs()
     # print(f"Color image shape: {color.shape}, Depth image shape: {depth.shape}.")
     # cv2.imwrite("./Memory_Grasp/results/debug/color.png", color)
     # cv2.imwrite("./Memory_Grasp/results/debug/depth.png", depth)
-    # for i in range(100):
-    #     print(f"--- Running turn {i+1} ---")
-    #     agent.run_one_turn()
 

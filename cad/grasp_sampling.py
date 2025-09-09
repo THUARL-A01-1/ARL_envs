@@ -151,13 +151,17 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
     # Create a copy of the point cloud for visualization
     point_cloud_copy = copy.deepcopy(point_cloud)
     
-    # 在点云中标出sphere: 抓取点
+    # 在点云中标出sphere: 抓取点和深度偏移后的抓取点
     spheres = []
     for i in range(len(grasp_points)):
         sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.002)
         sphere.translate(grasp_points[i])
         sphere.paint_uniform_color([1, 0, 0])  # Red color for grasp points
         spheres.append(sphere)
+        sphere_depth = o3d.geometry.TriangleMesh.create_sphere(radius=0.002)
+        sphere_depth.translate(grasp_points[i] + grasp_normals[i] * grasp_depths[i])
+        sphere_depth.paint_uniform_color([0, 0, 1])  # Blue color for depth offset points
+        spheres.append(sphere_depth)
     
     # 在点云中标出gripper: 抓取法线, 角度和深度
     grippers = [initial_gripper]

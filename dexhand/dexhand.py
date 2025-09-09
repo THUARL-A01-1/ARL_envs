@@ -19,7 +19,7 @@ class DexHandEnv(gym.Env):
         - replay(): Replay the current snapshot or the whole episode.
         - close(): Close the environment and release resources.
         """
-        self.max_iter, self.pos_tolerane, self.velocity_tolerance, self.force_tolerance = 1000, 0.001, 0.001, 1  # Maximum iteration and error tolerance of position error
+        self.max_iter, self.pos_tolerane, self.velocity_tolerance, self.force_tolerance = 1000, 0.002, 0.001, 1  # Maximum iteration and error tolerance of position error
         self.episode_buffer = {"rgb": [], "depth": [], "segmentation": [], "tactile_left": [], "tactile_right": [], "joint": []}  # Episode buffer for replay
         
         self.render_mode = render_mode  # Rendering mode, can be "human" or "rgb_array"

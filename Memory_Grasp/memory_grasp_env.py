@@ -13,7 +13,7 @@ import metric.metrics as metrics
 import Memory_Grasp.utils as utils
 
 class MemoryGraspEnv(DexHandEnv):
-    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(50), scene_id=5):
+    def __init__(self, render_mode="rgb_array", grasp_mode="free", scene_range=range(75), scene_id=5):
         """
         RLGraspEnv is an implementation of the DexHandEnv + RL API + multiobject scene engineed by Mujoco, with API formulated based on Gym.
         RLGraspEnv rewrites the following important methods:
@@ -36,7 +36,7 @@ class MemoryGraspEnv(DexHandEnv):
         self.action_buffer = []  # Buffer to store the action history
         self.max_attempts = 100  # Maximum number of attempts to grasp the object
         self.grasp_mode = grasp_mode  # Grasp mode, can be "fixed_force" or "variable_force"
-        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in []]
+        self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in [64, 68, 70]]
         print("RLgrasp env initialized.")
         
     def reset(self, seed=None, options=None):
@@ -44,7 +44,6 @@ class MemoryGraspEnv(DexHandEnv):
         The reset method of the son class will reload the model.
         """
         # self.model_path = self.scene_xml_list[5]#random.choice(self.scene_xml_list)
-        # self.model_path = self.scene_xml_list[1]
         # print(f"RLgrasp env reset: {self.model_path}")
         self._release_model()  # Release the current model to avoid memory leak
         self._load_model(self.model_path, resolution=(480, 640))  # Load a new model from the scene XML file
@@ -55,7 +54,12 @@ class MemoryGraspEnv(DexHandEnv):
         random_xyzw = R.random().as_quat()  # Randomly set the object orientation
         random_wxyz = np.array([random_xyzw[3], random_xyzw[0], random_xyzw[1], random_xyzw[2]])
         self.mj_data.qpos[11:15] = random_wxyz
+        self.mj_data.qvel[8:15] = 0.0 # Set the object velocity to zero
+        # self.mj_data.qpos[8:15] = 0.0
+        # self.mj_data.qpos[11] = 1.0
 
+        
+        super().step(np.zeros(7), sleep=True, add_frame=True)
         super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
 
         return self.get_observation(), {}
@@ -79,8 +83,8 @@ class MemoryGraspEnv(DexHandEnv):
 
         :return: A 5-item tuple containing the observation, reward, done flag, truncated flag and info dictionary.
         """
-        hand_offsest = 0.175 - 0.0001  # 0.01 for more stable grasping
-        approach_offset = 0.4  # The offset distance from the grasp point to the approach position
+        hand_offsest = 0.167
+        approach_offset = 0.3  # The offset distance from the grasp point to the approach position
         lift_height = 0.03
 
         # Step 0: get the depth_image with object segmentation mask.
@@ -100,7 +104,7 @@ class MemoryGraspEnv(DexHandEnv):
         self.mj_data.qpos[3:6] = target_rot
         self.mj_data.qvel[:] = 0.0
         # Step 2: Move to the target grasp position
-        super().step(np.concatenate([target_pos - approach_pos, np.zeros(3), np.zeros(1)]))
+        super().step(np.concatenate([target_pos - approach_pos, np.zeros(3), np.zeros(1)]), add_frame=False)
         # Step 3: Apply the grasping force to the object
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([target_force])]))
         # Step 4: Lift the object to a certain height
