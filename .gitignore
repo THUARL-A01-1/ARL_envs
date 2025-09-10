@@ -1,6 +1,7 @@
 # Results
 *.egg-info
 *.mp4
+*.zip
 **/results/
 cad/assets/
 **/memory/
