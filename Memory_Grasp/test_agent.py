@@ -2,7 +2,7 @@ from cad.grasp_sampling import sample_grasp_point, sample_grasp_normal, sample_g
 import cv2
 import matplotlib.pyplot as plt
 from Memory_Grasp.memory_grasp_env import MemoryGraspEnv
-from Memory_Grasp.server_test import send_image_to_server
+from Memory_Grasp.server import send_image_to_server
 import numpy as np
 import open3d as o3d
 import os

@@ -2,7 +2,7 @@ from cad.grasp_sampling import sample_grasp_point, sample_grasp_normal, sample_g
 import cv2
 import matplotlib.pyplot as plt
 from Memory_Grasp.memory_grasp_env import MemoryGraspEnv
-from Memory_Grasp.server_test import send_image_to_server
+from Memory_Grasp.server import send_image_to_server
 import numpy as np
 import open3d as o3d
 import os
@@ -20,8 +20,8 @@ class MemoryGraspAgent:
     """
     def __init__(self):
         self.camera2base = np.eye(4)  # camera2base transformation matrix
-        self.env = MemoryGraspEnv(render_mode="human")
-        self.env.reset()
+        self.env = MemoryGraspEnv(render_mode="human", scene_id=10)
+        self.env.reset(switch_scene=False)
         self.anchor_candidate_actions = generate_candidate_actions(num_samples=300)
         pass
 
@@ -158,7 +158,7 @@ class MemoryGraspAgent:
             valid_memory_idx = np.where(memory[:, 5] > 0.97)[0]
             # print(f"Loaded memory for {object_name}, shape: {memory.shape}.")
             
-            if np.random.random() < 1.0 + np.max(memory[:, -1]) and len(valid_memory_idx) > 0:  # use max reward to adjust the greedy threshold
+            if np.random.random() < -1.0 + np.max(memory[:, -1]) and len(valid_memory_idx) > 0:  # use max reward to adjust the greedy threshold
                 action_id = self.choose_action_from_memory(memory, top_k=5)
                 action = memory[action_id]
                 action_from = "memory"
@@ -184,13 +184,14 @@ class MemoryGraspAgent:
         
         if reward > -1.0:
             print(f"Successful grasp! Resetting the environment.")
-            self.env.reset()
+            self.env.reset(switch_scene=False)
 
-def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
+def generate_candidate_actions(num_samples=500, OBJECT_ID="010", scale=0.7):
     # Load the point cloud
     try:
         file_path = f"cad/assets/{OBJECT_ID}/downsampled.ply"  # Replace with your point cloud file path
         point_cloud = o3d.io.read_point_cloud(file_path)
+        point_cloud.scale(scale, center=point_cloud.get_center())
         print(f"Loaded point cloud with {len(point_cloud.points)} points.")
     except Exception as e:
         print(f"Error loading point cloud: {e}")
@@ -204,7 +205,7 @@ def generate_candidate_actions(num_samples=500, OBJECT_ID="005"):
             grasp_normals_sample = sample_grasp_normal(10 * num_samples)
             # grasp_normals_sample[:, 0], grasp_normals_sample[:, 1], grasp_normals_sample[:, 2] = 0.0, 0.0, 1.0  # force the approach vector to be vertical
             grasp_angles_sample = sample_grasp_angle(10 * num_samples)
-            grasp_depths_sample = sample_grasp_depth(10 * num_samples, min_depth=-1e-2, max_depth=-1e-3) - 0.01
+            grasp_depths_sample = sample_grasp_depth(10 * num_samples, min_depth=-1e-2, max_depth=-1e-3)
             grasp_collisions_sample = sample_grasp_collision(point_cloud, grasp_points_sample, grasp_normals_sample, grasp_angles_sample, grasp_depths_sample, initialize_gripper())
             print(f"Sampled {10 * num_samples} grasps, with {sum(grasp_collisions_sample)} collisions detected.")
             grasp_points.extend(grasp_points_sample[np.logical_not(grasp_collisions_sample)])

@@ -39,14 +39,15 @@ class MemoryGraspEnv(DexHandEnv):
         self.scene_xml_list = [f"RLgrasp/scenes/{i:03d}.xml" for i in scene_range if i not in [64, 68, 70]]
         print("RLgrasp env initialized.")
         
-    def reset(self, seed=None, options=None):
+    def reset(self, seed=None, options=None, switch_scene=True):
         """
         The reset method of the son class will reload the model.
         """
         # self.model_path = self.scene_xml_list[5]#random.choice(self.scene_xml_list)
-        # print(f"RLgrasp env reset: {self.model_path}")
-        self._release_model()  # Release the current model to avoid memory leak
-        self._load_model(self.model_path, resolution=(480, 640))  # Load a new model from the scene XML file
+        if switch_scene:
+            print(f"Switch scene: {self.model_path}")
+            self._release_model()  # Release the current model to avoid memory leak
+            self._load_model(self.model_path, resolution=(480, 640))  # Load a new model from the scene XML file
         super().reset()
         self.action_buffer = []  # Clear the action history buffer
 
@@ -83,7 +84,7 @@ class MemoryGraspEnv(DexHandEnv):
 
         :return: A 5-item tuple containing the observation, reward, done flag, truncated flag and info dictionary.
         """
-        hand_offsest = 0.167
+        hand_offsest = 0.147
         approach_offset = 0.3  # The offset distance from the grasp point to the approach position
         lift_height = 0.03
 
