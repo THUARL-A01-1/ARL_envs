@@ -31,7 +31,6 @@ class MemoryGraspAgent:
         color = self.env.mj_renderer_rgb.render().astype(np.uint8)
         color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
         depth = (self.env.mj_renderer_depth.render() * 1000).astype(np.uint16)
-        # TODO: adjust the relative params.
         
         return color, depth
 

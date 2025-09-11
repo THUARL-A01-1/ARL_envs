@@ -39,7 +39,7 @@ def send_image_to_server(color_bytes, depth_bytes, object_name_bytes, task_bytes
             # pred_pose为4x4 float32矩阵
             import numpy as np
             pred_pose = np.frombuffer(recieve_bytes, dtype=np.float32).reshape(4, 4)
-            print("Predicted pose:\n", pred_pose)
+            # print("Predicted pose:\n", pred_pose)
             return pred_pose
         if server_name == 'clip':
             # 接收返回的label
