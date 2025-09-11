@@ -1,4 +1,4 @@
-from cad.grasp_sampling import sample_grasp_point, sample_grasp_normal, sample_grasp_angle, sample_grasp_depth, sample_grasp_collision, initialize_gripper, visualize_grasp
+from cad.grasp_sampling import sample_grasp_point, sample_grasp_quat, sample_grasp_angle, sample_grasp_depth, sample_grasp_collision, initialize_gripper, visualize_grasp
 import cv2
 import matplotlib.pyplot as plt
 from Memory_Grasp.memory_grasp_env import MemoryGraspEnv

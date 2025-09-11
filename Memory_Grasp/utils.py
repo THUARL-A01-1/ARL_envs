@@ -7,8 +7,7 @@ def encode_action(action, hand_offset, approach_offset):
     Transform the 8D action to the target position and rotation of the hand.
     The action is in the form of a 8D vector:
     1. grasp_pos (3D): the target grasp position in 3D space.
-    2. approach vector (3D): the target approach vector in 3D space
-    3. alpha (1D): the rotation angle around the approach vector.
+    2. grasp_quat (4D): the target grasp rotation in quaternion (xyzw) format.
     4. grasp force (1D): the force applied to the object during grasping.
     The output is the target position and rotation of the hand.
     1. approach_pos (3D): the position to approach the grasp position.
@@ -17,14 +16,16 @@ def encode_action(action, hand_offset, approach_offset):
     4. grasp_force (1D): the force applied to the object during grasping
     """
 
-    grasp_pos, approach_vector, alpha, grasp_force = action[0:3], action[3:6], action[6], action[7]
+    grasp_pos, grasp_quat, grasp_force = action[0:3], action[3:7], action[7]
+    if np.linalg.norm(grasp_quat) < 1e-6:
+        print("Error: grasp_quat is zero.")
+        return None, None, None, None
+    
+    grasp_mat = R.from_quat(grasp_quat).as_matrix()
 
-    target_pos = grasp_pos + approach_vector * hand_offset
-    approach_pos = grasp_pos + approach_vector * approach_offset
+    target_pos = grasp_pos + grasp_mat[:, 2] * hand_offset
+    approach_pos = grasp_pos + grasp_mat[:, 2] * approach_offset
 
-    target_R_to_normal, _ = R.align_vectors([approach_vector], [[0, 0, 1]])
-    target_R_about_normal = R.from_rotvec(alpha * approach_vector)
-    rot = target_R_about_normal * target_R_to_normal
-    target_rot = rot.as_euler('XYZ', degrees=False)
+    target_rot = R.from_matrix(grasp_mat).as_euler('XYZ', degrees=False)
     
     return approach_pos, target_rot, target_pos, grasp_force

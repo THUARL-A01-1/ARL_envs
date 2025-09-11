@@ -57,7 +57,7 @@ def sample_grasp_point(point_cloud, num_samples=1):
     
     return grasp_points
 
-def sample_grasp_normal(num_samples=1):
+def sample_grasp_quat(num_samples=1):
     """
     Sample grasp normals from a uniform distribution on the unit sphere.
     
@@ -67,28 +67,10 @@ def sample_grasp_normal(num_samples=1):
     Returns:
         list: A list of sampled grasp normals.
     """
-    phi = np.arccos(1 - 2 * np.random.rand(num_samples))  # [0, pi]
-    theta = 2 * np.pi * np.random.rand(num_samples)        # [0, 2pi]
-    x = np.sin(phi) * np.cos(theta)
-    y = np.sin(phi) * np.sin(theta)
-    z = np.cos(phi)
-    grasp_normals = np.column_stack((x, y, z))
+    random_xyzw = R.random(num_samples).as_quat()
+    grasp_quats = np.array(random_xyzw)  # shape: (num_samples, 4), [x, y, z, w]
     
-    return grasp_normals
-
-def sample_grasp_angle(num_samples=1):
-    """
-    Sample grasp angles from a uniform distribution.
-    
-    Args:
-        num_samples (int): The number of grasp angles to sample.
-    
-    Returns:
-        list: A list of sampled grasp angles.
-    """
-    angles = np.random.uniform(0, 2 * np.pi, num_samples)
-    
-    return angles
+    return grasp_quats
 
 def sample_grasp_depth(num_samples=1, min_depth=-1e-1, max_depth=2e-2):
     """
@@ -106,15 +88,14 @@ def sample_grasp_depth(num_samples=1, min_depth=-1e-1, max_depth=2e-2):
     
     return grasp_depths
 
-def sample_grasp_collision(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper):
+def sample_grasp_collision(point_cloud, grasp_points, grasp_quats, grasp_depths, initial_gripper):
     """
     Sample grasp collision detection.
     
     Args:
         point_cloud (o3d.geometry.PointCloud): The input point cloud.
         grasp_points (list): A list of sampled grasp points.
-        grasp_normals (list): A list of sampled grasp normals.
-        grasp_angles (list): A list of sampled grasp angles.
+        grasp_quats (list): A list of sampled grasp quaternions.
         grasp_depths (list): A list of sampled grasp depths.
         initial_gripper (o3d.geometry.TriangleMesh): The initial gripper geometry.
     
@@ -125,27 +106,23 @@ def sample_grasp_collision(point_cloud, grasp_points, grasp_normals, grasp_angle
     
     for i in range(len(grasp_points)):
         gripper_copy = copy.deepcopy(initial_gripper)
-        R_to_normal, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
-        R_about_normal = R.from_rotvec(grasp_angles[i] * grasp_normals[i])  # The normal vector is aleady the z-axis
-        rotation_matrix = R_about_normal * R_to_normal
-        rotation_xyz = rotation_matrix.as_euler('XYZ', degrees=False)
-        gripper_copy.rotate(R.from_euler('XYZ', rotation_xyz, degrees=False).as_matrix(), center=np.zeros(3))  # rotate to grasp normal
-        gripper_copy.translate(grasp_points[i] + grasp_normals[i] * grasp_depths[i])  # translate to grasp point  # translate along the normal direction
+        grasp_mat = R.from_quat(grasp_quats[i]).as_matrix()
+        gripper_copy.rotate(grasp_mat, center=np.zeros(3))  # rotate to grasp normal
+        gripper_copy.translate(grasp_points[i] + grasp_mat[:, 2] * grasp_depths[i])  # translate to grasp point  # translate along the normal direction
 
         collision = cad.collision_detection.distance_collision_detection(gripper_copy, point_cloud)
         grasp_collisions.append(collision)
     
     return grasp_collisions
 
-def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper):
+def visualize_grasp(point_cloud, grasp_points, grasp_quats, grasp_depths, initial_gripper):
     """
     Visualize the grasp points, normals, and depths on the point cloud.
     
     Args:
         point_cloud (o3d.geometry.PointCloud): The input point cloud.
         grasp_points (list): A list of sampled grasp points.
-        grasp_normals (list): A list of sampled grasp normals.
-        grasp_angles (list): A list of sampled grasp angles.
+        grasp_quats (list): A list of sampled grasp quaternions.
         grasp_depths (list): A list of sampled grasp depths.
     """
     # Create a copy of the point cloud for visualization
@@ -159,7 +136,8 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
         sphere.paint_uniform_color([1, 0, 0])  # Red color for grasp points
         spheres.append(sphere)
         sphere_depth = o3d.geometry.TriangleMesh.create_sphere(radius=0.002)
-        sphere_depth.translate(grasp_points[i] + grasp_normals[i] * grasp_depths[i])
+        grasp_mat = R.from_quat(grasp_quats[i]).as_matrix()
+        sphere_depth.translate(grasp_points[i] + grasp_mat[:, 2] * grasp_depths[i])
         sphere_depth.paint_uniform_color([0, 0, 1])  # Blue color for depth offset points
         spheres.append(sphere_depth)
     
@@ -167,12 +145,9 @@ def visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, gras
     grippers = [initial_gripper]
     for i in range(len(grasp_points)):
         gripper_copy = copy.deepcopy(initial_gripper)
-        R_to_normal, _ = R.align_vectors([grasp_normals[i]], [[0, 0, 1]])
-        R_about_normal = R.from_rotvec(grasp_angles[i] * grasp_normals[i])
-        rotation_matrix = R_about_normal * R_to_normal
-        rotation_xyz = rotation_matrix.as_euler('XYZ', degrees=False)
-        gripper_copy.rotate(R.from_euler('XYZ', rotation_xyz, degrees=False).as_matrix(), center=np.zeros(3))  # rotate to grasp normal
-        gripper_copy.translate(grasp_points[i] + grasp_normals[i] * grasp_depths[i])  # translate to grasp point  # translate along the normal direction
+        grasp_mat = R.from_quat(grasp_quats[i]).as_matrix()
+        gripper_copy.rotate(grasp_mat, center=np.zeros(3))  # rotate to grasp normal
+        gripper_copy.translate(grasp_points[i] + grasp_mat[:, 2] * grasp_depths[i])  # translate to grasp point  # translate along the normal direction
 
         collision = cad.collision_detection.distance_collision_detection(gripper_copy, point_cloud_copy)
         if collision:
@@ -199,18 +174,16 @@ def main(num_samples=500, OBJECT_ID="000"):
         return
     
     # Sample grasp points, normals, and depths
-    grasp_points, grasp_normals, grasp_angles, grasp_depths = [], [], [], []
+    grasp_points, grasp_quats, grasp_depths = [], [], []
     while len(grasp_points) < num_samples:
         try:
             grasp_points_sample = sample_grasp_point(point_cloud, 30 * num_samples) # 根据经验，每次采样30倍的数量
-            grasp_normals_sample = sample_grasp_normal(30 * num_samples)
-            grasp_angles_sample = sample_grasp_angle(30 * num_samples)
+            grasp_quats_sample = sample_grasp_quat(30 * num_samples)
             grasp_depths_sample = sample_grasp_depth(30 * num_samples)
-            grasp_collisions_sample = sample_grasp_collision(point_cloud, grasp_points_sample, grasp_normals_sample, grasp_angles_sample, grasp_depths_sample, initialize_gripper())
+            grasp_collisions_sample = sample_grasp_collision(point_cloud, grasp_points_sample, grasp_quats_sample, grasp_depths_sample, initialize_gripper())
             print(f"Sampled {30 * num_samples} grasps, with {sum(grasp_collisions_sample)} collisions detected.")
             grasp_points.extend(grasp_points_sample[np.logical_not(grasp_collisions_sample)])
-            grasp_normals.extend(grasp_normals_sample[np.logical_not(grasp_collisions_sample)])
-            grasp_angles.extend(grasp_angles_sample[np.logical_not(grasp_collisions_sample)])
+            grasp_quats.extend(grasp_quats_sample[np.logical_not(grasp_collisions_sample)])
             grasp_depths.extend(grasp_depths_sample[np.logical_not(grasp_collisions_sample)])            
         except Exception as e:
             print(f"Error sampling grasps: {e}")
@@ -219,12 +192,12 @@ def main(num_samples=500, OBJECT_ID="000"):
     # # Visualize the sampled grasps
     # try:
     #     initial_gripper = initialize_gripper()
-    #     visualize_grasp(point_cloud, grasp_points, grasp_normals, grasp_angles, grasp_depths, initial_gripper)
+    #     visualize_grasp(point_cloud, grasp_points, grasp_quats, grasp_depths, initial_gripper)
     # except Exception as e:
     #     print(f"Error visualizing grasps: {e}")
     #     return
     
-    return grasp_points, grasp_normals, grasp_angles, grasp_depths
+    return grasp_points, grasp_quats, grasp_depths
 
 if __name__ == "__main__":
     main()

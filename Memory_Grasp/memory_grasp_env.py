@@ -51,7 +51,7 @@ class MemoryGraspEnv(DexHandEnv):
         super().reset()
         self.action_buffer = []  # Clear the action history buffer
 
-        self.mj_data.qpos[8:10] = np.random.uniform(-0.2, 0.2, size=2)  # Randomly set the object position
+        self.mj_data.qpos[8:10] = np.random.uniform(-0.2, 0.2, size=2)  # Randomly set the object poseition
         random_xyzw = R.random().as_quat()  # Randomly set the object orientation
         random_wxyz = np.array([random_xyzw[3], random_xyzw[0], random_xyzw[1], random_xyzw[2]])
         self.mj_data.qpos[11:15] = random_wxyz
@@ -69,8 +69,7 @@ class MemoryGraspEnv(DexHandEnv):
         """
         The action is in the form of a 8D vector:
         1. grasp_pos (3D): the target grasp position in 3D space.
-        2. approach vector (3D): the target approach vector in 3D space.
-        3. alpha (1D): the rotation angle around the approach vector.
+        2. grasp_quat (4D): the target grasp rotation in quaternion (xyzw) format.
         4. grasp force (0 ~ 3): the force applied to the object during grasping.
         
         The action is conducted by three steps to avoiding the hand from being stuck in the object:
@@ -119,7 +118,7 @@ class MemoryGraspEnv(DexHandEnv):
         # if reward > -1.0:
         #     super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([target_force])]))  # drop the hand
             # super().step(np.concatenate([np.array([0, 0, -lift_height]), np.zeros(3), np.array([-target_force])]))  # release the hand
-            # super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pos
+            # super().step(np.concatenate([approach_pos - target_pos, np.zeros(3), np.zeros(1)]))  # return to the approach pose
         
         # Step 6: Set the hand to the initial qpos and get the next observation (image).
         self.mj_data.qpos[0:8] = 0  # Reset the joint positions to zero, including the finger drivers
