@@ -85,7 +85,7 @@ class MemoryGraspEnv(DexHandEnv):
         """
         hand_offsest = 0.147
         approach_offset = 0.3  # The offset distance from the grasp point to the approach position
-        lift_height = 0.03
+        lift_height = 0.05
 
         # Step 0: get the depth_image with object segmentation mask.
         self.action_buffer.append(action)
@@ -108,7 +108,7 @@ class MemoryGraspEnv(DexHandEnv):
         # Step 3: Apply the grasping force to the object
         super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([target_force])]))
         # Step 4: Lift the object to a certain height
-        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([target_force])]), add_frame=False)
+        super().step(np.concatenate([np.array([0, 0, lift_height]), np.zeros(3), np.array([target_force])]), add_frame=True)
 
         # calculate the relative feedback
         reward, done, truncated = self.compute_reward()
@@ -124,7 +124,7 @@ class MemoryGraspEnv(DexHandEnv):
         self.mj_data.qpos[0:8] = 0  # Reset the joint positions to zero, including the finger drivers
         self.mj_data.qvel[0:8] = 0  # Reset the joint velocities to zero, including the finger drivers
         # super().step(np.concatenate([np.zeros(3), np.zeros(3), np.array([-10])]))
-        super().step(np.concatenate([np.zeros(3), np.zeros(3), np.zeros(1)]), add_frame=True)
+        super().step(np.zeros(7), sleep=True, add_frame=True)  # wait for the object to drop on the floor
         observation = self.get_observation()
 
         # print(f"reward: {reward}, done: {done}, truncated: {truncated}")
@@ -149,7 +149,7 @@ class MemoryGraspEnv(DexHandEnv):
         """
         # observation = {"history_depth":np.array(self.episode_buffer["depth"][1:-1:2]), "history_action":np.array(self.action_buffer), "current_depth":np.array(self.episode_buffer["depth"][-1])}
 
-        return np.array(self.episode_buffer["depth"][-1])#observation["current_depth"]
+        return np.array(self.episode_buffer["tactile_left"][-1])#observation["current_depth"]
 
 
     def compute_reward(self):

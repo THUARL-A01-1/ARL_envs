@@ -23,6 +23,7 @@ class MemoryGraspAgent:
         self.env = MemoryGraspEnv(render_mode="human", scene_id=5)
         self.env.reset(switch_scene=False)
         self.anchor_candidate_actions = generate_candidate_actions(num_samples=300)
+        self.reward, self.done = -1.0, False
         pass
 
     def load_memory(self, memory_path):
@@ -49,13 +50,10 @@ class MemoryGraspAgent:
         # Choose the action with the highest reward from memory with memory[:, 5] > 0.97
         memory_mat = R.from_quat(memory[:, 3:7]).as_matrix()
         valid_idx = np.where(memory_mat[:, 2, 2] > 0.97)[0]
-        if len(valid_idx) == 0:
-            print("No valid memory found. Choosing a best-reward action from all memory.")
-            action_id = np.argmax(memory[:, -1])
-        else:
-            top_k = min(top_k, len(valid_idx))
-            top_k_idx = np.argsort(memory[valid_idx, -1])[-top_k:]
-            action_id = valid_idx[top_k_idx[np.random.randint(0, top_k)]]
+        top_k = min(top_k, len(valid_idx))
+        top_k_idx = np.argsort(memory[valid_idx, -1])[-top_k:]
+        # The reward value is not very well distributed, so we randomly choose one from the top_k
+        action_id = valid_idx[top_k_idx[np.random.randint(0, top_k)]]
 
         return action_id
     
@@ -136,6 +134,25 @@ class MemoryGraspAgent:
 
         return anchor2base
 
+    def get_action_from(self, object_name, anchor2base, reward, done):      
+        memory_path = os.path.join("Memory_Grasp/memory", f"{object_name}_memory.npy")
+        self.anchor_memory = self.load_memory(memory_path)
+        if self.anchor_memory is None or self.anchor_memory.shape[0] == 0:  # no memory yet
+            print(f"No memory found for {object_name}. Setting anchor frame and initializing memory.")
+            # if reward > -1.0 and (not done):
+            #     return "recovery"
+            return "random"
+        
+        memory = self.anchor_memory.copy()
+        memory[:, :-1] = transform_action(self.anchor_memory[:, :-1].copy(), anchor2base)  # transform memory to current object pose
+        memory_mat = R.from_quat(memory[:, 3:7]).as_matrix()
+        valid_memory_idx = np.where(memory_mat[:, 2, 2] > 0.97)[0]
+        if np.random.random() < 1.3 + np.max(memory[:, -1]) and len(valid_memory_idx) > 0:  # use max reward to adjust the greedy threshold
+            return "memory"
+        # if reward > -1.0 and (not done):
+        #     return "recovery"   
+        return "random"
+
     def run_one_turn(self):
         """
         A decision-interaction step:
@@ -149,90 +166,96 @@ class MemoryGraspAgent:
         object_name = "test_object"  # TODO: self.tracker.recognize_object()
         # object_name = self.get_object_name()
         print(f"Recognized object: {object_name}.")
+        memory_path = os.path.join("Memory_Grasp/memory", f"{object_name}_memory.npy")
 
         anchor2base = self.get_anchor2base(object_name)  # get the object pose
-        candidate_actions = transform_action(self.anchor_candidate_actions.copy(), anchor2base)  # transform candidate actions to current object pose
-        action_from = "random"
+        action_from = self.get_action_from(object_name, anchor2base, self.reward, self.done)
+        print(f"Choosing action from: {action_from}.")
         
-        memory_path = os.path.join("Memory_Grasp/memory", f"{object_name}_memory.npy")
-        anchor_memory = self.load_memory(memory_path)
-        if anchor_memory is None:  # no memory yet
-            print(f"No memory found for {object_name}. Setting anchor frame and initializing memory.")
-            # self.set_anchor(object_name)
+        if action_from == "random":
+            candidate_actions = transform_action(self.anchor_candidate_actions.copy(), anchor2base)  # transform candidate actions to current object pose
             action_id = self.choose_action_from_random(candidate_actions)
             action = candidate_actions[action_id]
         
-        else:  # already have memory
-            memory = anchor_memory.copy()
-            memory[:, :-1] = transform_action(anchor_memory[:, :-1].copy(), anchor2base)  # transform memory to current object pose
-            memory_mat = R.from_quat(memory[:, 3:7]).as_matrix()
-            valid_memory_idx = np.where(memory_mat[:, 2, 2] > 0.97)[0]
-            # print(f"Loaded memory for {object_name}, shape: {memory.shape}.")
-            
-            if np.random.random() < 1.3 + np.max(memory[:, -1]) and len(valid_memory_idx) > 0:  # use max reward to adjust the greedy threshold
-                action_id = self.choose_action_from_memory(memory, top_k=5)
-                action = memory[action_id]
-                action_from = "memory"
-                print(f"Chose action from memory.")
-            else:
-                action_id = self.choose_action_from_random(candidate_actions)
-                action = candidate_actions[action_id]
-                print(f"Chose action from random.")
+        elif action_from == "memory":
+            memory = self.anchor_memory.copy()
+            memory[:, :-1] = transform_action(self.anchor_memory[:, :-1].copy(), anchor2base)  # transform memory to current object pose
+            action_id = self.choose_action_from_memory(memory, top_k=5)
+            action = memory[action_id]
+        
+        elif action_from == "recovery":
+            tactile = self.observation.reshape(3, 20, 20)  # Reshape 1200 to 3*20*20
+            X, Y = np.meshgrid(np.arange(20), np.arange(20))
+            Fx, Fy, Fz = tactile[1, ...], tactile[2, ...], tactile[0, ...]
+            torque_z = np.sum(X.flatten() * Fy.flatten() - Y.flatten() * Fx.flatten())
+            grasp_mat = R.from_quat(self.action[3:7]).as_matrix()
+            action = self.action.copy()
+            action[:3] = action[:3] + grasp_mat[:, 1] * np.sign(torque_z) * 0.01  # move along the lateral direction of the gripper
+            action_id = -1  # no action_id for recovery action
 
         observation, reward, done, truncated, info = self.env.step(action)
-        print(f"Executed action, received reward: {reward}, done: {done}, truncated: {truncated}.")
-        
-        if action_from == "memory" and (not done):
-            print(f"Warning: action from memory resulted in failure. Delete this memory.")
-            anchor_memory = np.delete(anchor_memory, action_id, axis=0)
-            self.save_memory(anchor_memory, None, reward, memory_path)
-
-        if action_from == "random" and done:
-            print(f"Saved updated memory for {object_name} with reward: {reward}.")
-            anchor2base = self.get_anchor2base(object_name)  # get the updated object pose
-            anchor_action = transform_action(action[np.newaxis, :].copy(), np.linalg.inv(anchor2base))[0]  # transform action to anchor frame
-            self.save_memory(anchor_memory, anchor_action, reward, memory_path)
+        self.action, self.observation, self.reward, self.done = action, observation, reward, done
+        print(f"Executed {action}, received reward: {reward}, done: {done}.")
         
         if done:
+            if action_from == "random" or action_from == "recovery":
+                anchor2base = self.get_anchor2base(object_name)  # get the updated object pose
+                anchor_action = transform_action(action[np.newaxis, :].copy(), np.linalg.inv(anchor2base))[0]  # transform action to anchor frame
+                print(f"Saved updated memory for {object_name} with reward: {reward}.")
+                self.save_memory(self.anchor_memory, anchor_action, reward, memory_path)
             print(f"Successful grasp! Resetting the environment.")
             self.env.reset(switch_scene=False)
+        else:
+            if action_from == "memory":
+                print(f"Warning: action from memory resulted in failure. Delete this memory.")
+                self.anchor_memory = np.delete(self.anchor_memory, action_id, axis=0)
+                self.save_memory(self.anchor_memory, None, reward, memory_path)
         
-        return 0 if action_from == "random" else 1, done, anchor_memory.shape[0] if anchor_memory is not None else 0
+        return action_from, done, self.anchor_memory.shape[0] if self.anchor_memory is not None else 0
 
 
 if __name__ == "__main__":
     agent = MemoryGraspAgent()
-    action_from_list, done_list, memory_size_list = [], [], []
-    for i in range(1000):
-        print(f"--- Running turn {i+1} ---")
-        action_from, done, memory_size = agent.run_one_turn()
-        action_from_list.append(action_from)
-        done_list.append(done)
-        memory_size_list.append(memory_size)
+    # action_from_list, done_list, memory_size_list = [], [], []
+    # for i in range(500):
+    #     print(f"--- Running turn {i+1} ---")
+    #     action_from, done, memory_size = agent.run_one_turn()
+    #     action_from_list.append(action_from)
+    #     done_list.append(done)
+    #     memory_size_list.append(memory_size)
     
-    data = np.array([action_from_list, done_list, memory_size_list])
-    np.savetxt("./Memory_Grasp/results/debug/log_any6d.txt", data.T)
+    # action_from_map = {"random":0.0, "recovery":1.0, "memory":2.0}
+    # action_from_list = [action_from_map[a] for a in action_from_list]
+    # data = np.array([action_from_list, done_list, memory_size_list])
+    # np.savetxt("./Memory_Grasp/results/debug/log_any6d.txt", data.T)
 
-    # data = np.loadtxt("./Memory_Grasp/results/debug/log.txt")
-    # interval = 40
-    # plt.figure(figsize=(12, 4))
-    # plt.subplot(1, 3, 1)
-    # plt.plot([np.mean(data[interval * i : interval * (i + 1), 0]) for i in range(data.shape[0] // interval)])
-    # plt.ylabel("Memory usage rate")
-    # plt.subplot(1, 3, 2)
-    # rate_1 = np.nonzero(data[:, 1][data[:, 0] == 0.0])[0].shape[0] / data[:, 1][data[:, 0] == 0].shape[0]
-    # rate_2 = np.nonzero(data[:, 1][data[:, 0] == 1.0])[0].shape[0] / data[:, 1][data[:, 0] == 1].shape[0]
-    # plt.plot([np.nonzero(data[interval * i : interval * (i + 1), 1])[0].shape[0] / interval for i in range(data.shape[0] // interval)])
-    # plt.axhline(y=rate_1, color='r', linestyle='--', label=f"Random success rate: {rate_1:.2f}")
-    # plt.axhline(y=rate_2, color='g', linestyle='--', label=f"Memory success rate: {rate_2:.2f}")
-    # plt.legend()
-    # plt.ylabel("Success rate")
-    # plt.subplot(1, 3, 3)
-    # plt.plot(np.mean(data[:interval * (data.shape[0] // interval), 2].reshape(-1, interval), axis=1))
-    # plt.ylabel("Memory size")
-    # plt.tight_layout()
-    # plt.savefig("./Memory_Grasp/results/debug/log.png")
-    # plt.show()
+
+    data = np.loadtxt("./Memory_Grasp/results/debug/log_any6d.txt")
+    random_flag, recovery_flag, memory_flag = (data[:, 0] == 0.0), (data[:, 0] == 1.0), (data[:, 0] == 2.0)
+    interval = 50
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 3, 1)
+    plt.plot([np.mean(random_flag[interval * i : interval * (i + 1)]) for i in range(data.shape[0] // interval)], label="Random rate")
+    # plt.plot([np.mean(recovery_flag[interval * i : interval * (i + 1)]) for i in range(data.shape[0] // interval)], label="Recovery rate")
+    plt.plot([np.mean(memory_flag[interval * i : interval * (i + 1)]) for i in range(data.shape[0] // interval)], label="Memory rate")
+    plt.ylabel("Action source rate")
+    plt.legend()
+    plt.subplot(1, 3, 2)
+    rate_1 = np.sum(data[:, 1][random_flag]) / np.sum(random_flag)
+    rate_2 = np.sum(data[:, 1][recovery_flag]) / np.sum(recovery_flag)
+    rate_3 = np.sum(data[:, 1][memory_flag]) / np.sum(memory_flag)
+    plt.plot([np.nonzero(data[interval * i : interval * (i + 1), 1])[0].shape[0] / interval for i in range(data.shape[0] // interval)])
+    plt.axhline(y=rate_1, color='r', linestyle='--', label=f"Random success rate: {rate_1:.2f}")
+    # plt.axhline(y=rate_2, color='b', linestyle='--', label=f"Recovery success rate: {rate_2:.2f}")
+    plt.axhline(y=rate_3, color='g', linestyle='--', label=f"Memory success rate: {rate_3:.2f}")
+    plt.legend()
+    plt.ylabel("Success rate")
+    plt.subplot(1, 3, 3)
+    plt.plot(np.mean(data[:interval * (data.shape[0] // interval), 2].reshape(-1, interval), axis=1))
+    plt.ylabel("Memory size")
+    plt.tight_layout()
+    plt.savefig("./Memory_Grasp/results/debug/log_any6d.png")
+    plt.show()
         
     # color, depth = agent.get_imgs()
     # print(f"Color image shape: {color.shape}, Depth image shape: {depth.shape}.")
