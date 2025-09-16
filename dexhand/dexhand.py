@@ -10,7 +10,7 @@ import os
 import time
 
 class DexHandEnv(gym.Env):
-    def __init__(self, model_path="RLgrasp/scene.xml", render_mode="rgb_array", resolution=(512, 512)):
+    def __init__(self, model_path="dexhand/scene_example.xml", render_mode="rgb_array", resolution=(512, 512)):
         """
         DexHandEnv is an implementation of the DexHand + Tac3D engineed by Mujoco, with API formulated based on Gym.
         DexHandEnv supports the following important methods:

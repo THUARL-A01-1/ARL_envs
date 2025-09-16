@@ -3,7 +3,8 @@
 *.mp4
 *.zip
 **/results/
-cad/assets/
+**/assets/
+**/scenes/
 **/memory/
 **/__pycache__/
 **/logs/

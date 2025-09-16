@@ -3,8 +3,5 @@ gymnasium
 matplotlib
 mujoco
 numpy
-stable-baselines3
-scipy
-triangle
 open3d
-pympler
+scipy

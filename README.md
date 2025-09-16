@@ -15,9 +15,18 @@ This repository contains the implementation of the DexHandEnv, a simulation envi
     cd ARL_envs
 ```
 
-- **Install dependencies**:
+Three installation methods are available:
+1. - **Install dependencies**:
 ```bash
     pip install -r requirements.txt
+```
+2. - **Install as a package**:
+```bash
+    pip install .
+```
+3. - **Install in editable mode** (for development):
+```bash
+    pip install -e .
 ```
 
 Ensure MuJoCo is installed and properly configured. Refer to the MuJoCo installation guide for setup instructions.
