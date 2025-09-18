@@ -8,7 +8,7 @@ setup(
                       "gymnasium", 
                       "matplotlib", 
                       "mujoco", 
-                      "numpy", 
+                      "numpy==1.26.4", 
                       "open3d",  
                       "scipy"
                       ],
