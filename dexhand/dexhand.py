@@ -10,7 +10,7 @@ import os
 import time
 
 class DexHandEnv(gym.Env):
-    def __init__(self, model_path="dexhand/scene_example.xml", render_mode="rgb_array", resolution=(512, 512)):
+    def __init__(self, scene_path="dexhand/scene_example.xml", render_mode="rgb_array", resolution=(512, 512)):
         """
         DexHandEnv is an implementation of the DexHand + Tac3D engineed by Mujoco, with API formulated based on Gym.
         DexHandEnv supports the following important methods:
@@ -36,15 +36,33 @@ class DexHandEnv(gym.Env):
             "joint": gym.spaces.Box(low=-1, high=1, shape=(15, ), dtype=np.float32)}  # joint: self.mj_data.qpos(15D) = hand translation (3D) + hand rotation (3D) + left finger (1D) + right finger (1D) + object free joint (3D translation + 4D quaternion rotation)
         )
 
-        self._load_model(model_path, resolution)
+        self._load_model(scene_path, resolution)
     
-    def _load_model(self, model_path, resolution=(512, 512)):
+    def _load_model(self, scene_path, resolution=(512, 512)):
         """ Load the Mujoco model from the XML file.
         """
-        self.model_path = model_path
-        with open(self.model_path,"r") as f:
-            self.xml_content = f.read()
-            print(f"Reading xml: {self.model_path}.")
+        self.scene_path = scene_path
+        # Replace the $OBJECT_MODEL_PATH with the actual path in object.xml
+        with open(os.path.join(os.environ["OBJECT_MODEL_PATH"], "object.xml")) as f:
+            self.object_xml_content = f.read()
+            self.object_xml_content = self.object_xml_content.replace("$OBJECT_MODEL_PATH", os.environ["OBJECT_MODEL_PATH"])
+        with open(os.path.join(os.environ["OBJECT_MODEL_PATH"], "object.xml"), "w") as f:
+            f.write(self.object_xml_content)
+        
+        # Reaplce the $ARL_ENV_PATH and $OBJECT_MODEL_PATH with the actual path in dexhand.xml
+        with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml")) as f:
+            self.dexhand_xml_content = f.read()
+            self.dexhand_xml_content = self.dexhand_xml_content.replace("$ARL_ENV_PATH", os.environ["ARL_ENV_PATH"])
+        with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml"), "w") as f:
+            f.write(self.dexhand_xml_content)
+
+        # Reaplce the $ARL_ENV_PATH and $OBJECT_MODEL_PATH with the actual path in scene.xml
+        with open(self.scene_path,"r") as f:
+            self.xml_content = f.read()    
+            self.xml_content = self.xml_content.replace("$ARL_ENV_PATH", os.environ["ARL_ENV_PATH"])
+            self.xml_content = self.xml_content.replace("$OBJECT_MODEL_PATH", os.environ["OBJECT_MODEL_PATH"])
+            print(f"Reading xml: {self.scene_path}.")
+
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_content)
         self.mj_data = mujoco.MjData(self.mj_model)
         height, width = resolution
@@ -69,8 +87,6 @@ class DexHandEnv(gym.Env):
         del self.mj_renderer_rgb
         del self.mj_renderer_depth
         del self.mj_renderer_segmentation
-        # mujoco.mj_resetCallbacks()  # 清除回调函数
-        # self.xml_content, self.mj_model, self.mj_data, self.mj_renderer_rgb, self.mj_renderer_depth, self.mj_renderer_segmentation, self.mj_viewer = None, None, None, None, None, None, None
         gc.collect()
 
     def reset(self, seed=None, options=None):
@@ -101,7 +117,7 @@ class DexHandEnv(gym.Env):
         try:
             self.episode_buffer["segmentation"].append(self.mj_renderer_segmentation.render().transpose(2, 0, 1).astype(np.uint8))
         except IndexError as e:
-            print(f"From {self.model_path}: Segmentation rendering failed: {e}")
+            print(f"From {self.scene_path}: Segmentation rendering failed: {e}")
             self.episode_buffer["segmentation"].append(np.zeros((2, 512, 512), dtype=np.uint8))
 
     def step(self, action, sleep=False, add_frame=False):
