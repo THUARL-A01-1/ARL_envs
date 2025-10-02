@@ -6,7 +6,7 @@ import open3d as o3d
 import numpy as np
 import copy
 
-def distance_collision_detection(gripper, point_cloud, threshold=1e-2):
+def distance_collision_detection(gripper, point_cloud, threshold=5e-3):
     """
     Perform collision detection between a gripper and a point cloud.
     
