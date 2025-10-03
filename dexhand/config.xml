@@ -20,11 +20,12 @@
             </default>
             <default class="visual"> 
                 <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+                <mesh scale="0.001 0.001 0.001"/>
             </default>
             <default class="collision">
                 <geom type="mesh" mass="0" rgba="0 0 0 0" group="3"/>
                 <default class="pad"> 
-                    <geom mass="0" type="box" friction="1" solimp="0.1 0.99 0.001" solref="0.005 1" priority="1" margin="0"/>
+                    <geom mass="0" type="box" friction="1" solimp="0.7 0.99 0.001" solref="0.02 1" priority="1" margin="0"/>
                 </default>
             </default>
         </default>

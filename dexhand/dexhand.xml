@@ -91,7 +91,7 @@
         <velocity class="dexhand" name="velocity_pitch" joint="hand_base_joint_pitch" ctrlrange="-0.314159 0.314159" kv="100"/>
         <velocity class="dexhand" name="velocity_roll" joint="hand_base_joint_roll" ctrlrange="-0.314159 0.314159" kv="100"/>
         <velocity class="dexhand" name="velocity_yaw" joint="hand_base_joint_yaw" ctrlrange="-0.314159 0.314159" kv="100"/>
-        <motor class="dexhand" name="gripper" tendon="gripper" ctrlrange="-10 10" forcerange="-10 10"/>
+        <motor class="dexhand" name="gripper" tendon="gripper" ctrlrange="-20 20" forcerange="-20 20"/>
     </actuator>
     <include file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/tactile/touch_sensors.xml"/>
 </mujoco>
