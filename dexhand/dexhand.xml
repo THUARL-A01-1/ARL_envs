@@ -1,10 +1,10 @@
 <mujoco>
     <!-- The mesh assets -->
     <asset>
-        <mesh class="dexhand" file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/visual/dexhand_base.obj" name="hand_base"/>
-        <mesh class="dexhand" file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/visual/driver.obj" name="driver"/>
-        <mesh class="dexhand" file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/visual/tac3d.obj" name="finger"/>
-        <mesh class="dexhand" file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/visual/pad.obj" name="pad"/>
+        <mesh class="dexhand" file="$ARL_ENV_PATH/dexhand/assets/visual/dexhand_base.obj" name="hand_base"/>
+        <mesh class="dexhand" file="$ARL_ENV_PATH/dexhand/assets/visual/driver.obj" name="driver"/>
+        <mesh class="dexhand" file="$ARL_ENV_PATH/dexhand/assets/visual/tac3d.obj" name="finger"/>
+        <mesh class="dexhand" file="$ARL_ENV_PATH/dexhand/assets/visual/pad.obj" name="pad"/>
     </asset>
         <!-- The robot -->
     <worldbody>
@@ -42,7 +42,7 @@
                             </body>
                             <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
                             <geom class="pad" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
-                            <include file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/tactile/left_pad_collisions.xml"/>
+                            <include file="$ARL_ENV_PATH/dexhand/assets/tactile/left_pad_collisions.xml"/>
                             <site name="left_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                         </body>
                     </body>
@@ -63,7 +63,7 @@
                             </body>
                             <geom class="visual" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
                             <geom class="pad" mesh="pad" pos="-0.019 -0.1683 0.105" zaxis="1 0 0" material="metal"/>
-                            <include file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/tactile/right_pad_collisions.xml"/>
+                            <include file="$ARL_ENV_PATH/dexhand/assets/tactile/right_pad_collisions.xml"/>
                             <site name="right_pad_site" type="sphere" size="0.06" pos="0 0 -0.047" zaxis="0 0 -1" rgba="1 0 0 0.1" group="5"/>
                         </body>
                     </body>
@@ -93,5 +93,5 @@
         <velocity class="dexhand" name="velocity_yaw" joint="hand_base_joint_yaw" ctrlrange="-0.314159 0.314159" kv="100"/>
         <motor class="dexhand" name="gripper" tendon="gripper" ctrlrange="-20 20" forcerange="-20 20"/>
     </actuator>
-    <include file="e:/2 - 3_technical_material/simulator/arl_envs/dexhand/assets/tactile/touch_sensors.xml"/>
+    <include file="$ARL_ENV_PATH/dexhand/assets/tactile/touch_sensors.xml"/>
 </mujoco>

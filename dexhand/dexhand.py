@@ -74,6 +74,20 @@ class DexHandEnv(gym.Env):
         self.mj_viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data) if self.render_mode == "human" else None
         self.joint_dict = {self.mj_model.joint(i).name: i for i in range(self.mj_model.njnt)}
         self.actuator_dict = {self.mj_model.actuator(i).name: i for i in range(self.mj_model.actuator_actnum.shape[0])}
+        
+        # Replace back the $OBJECT_MODEL_PATH with the actual path in object.xml
+        with open(os.path.join(os.environ["OBJECT_MODEL_PATH"], "object.xml")) as f:
+            self.object_xml_content = f.read()
+            self.object_xml_content = self.object_xml_content.replace(os.environ["OBJECT_MODEL_PATH"], "$OBJECT_MODEL_PATH")
+        with open(os.path.join(os.environ["OBJECT_MODEL_PATH"], "object.xml"), "w") as f:
+            f.write(self.object_xml_content)
+        
+        # Reaplce the $ARL_ENV_PATH and $OBJECT_MODEL_PATH with the actual path in dexhand.xml
+        with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml")) as f:
+            self.dexhand_xml_content = f.read()
+            self.dexhand_xml_content = self.dexhand_xml_content.replace(os.environ["ARL_ENV_PATH"], "$ARL_ENV_PATH")
+        with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml"), "w") as f:
+            f.write(self.dexhand_xml_content)
 
     def _release_model(self):
         """ Release the Mujoco model and data.
