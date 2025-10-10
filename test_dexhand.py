@@ -8,13 +8,28 @@ from mujoco import viewer
 from dexhand.dexhand import DexHandEnv
 from scipy.spatial.transform import Rotation as R
 from stable_baselines3.common.env_checker import check_env
+os.environ['ARL_ENV_PATH'] = os.path.dirname(os.path.abspath(__file__))
 
 def test_in_GUI():
-    model_path = os.path.join('RLgrasp/scenes', '001.xml')
+    # Replace the $ARL_ENV_PATH with the actual path in dexhand.xml
+    with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml")) as f:
+        dexhand_xml_content = f.read()
+        dexhand_xml_content = dexhand_xml_content.replace("$ARL_ENV_PATH", os.environ["ARL_ENV_PATH"])
+    with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml"), "w") as f:
+        f.write(dexhand_xml_content)
+    
+    model_path = os.path.join('dexhand', 'scene_example.xml')
     with open(model_path,"r") as f:
         xml_content = f.read()
     model = mujoco.MjModel.from_xml_string(xml_content)
     mj_data = mujoco.MjData(model)
+    
+    # Replace back the $ARL_ENV_PATH with the actual path in dexhand.xml
+    with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml")) as f:
+        dexhand_xml_content = f.read()
+        dexhand_xml_content = dexhand_xml_content.replace(os.environ["ARL_ENV_PATH"], "$ARL_ENV_PATH")
+    with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml"), "w") as f:
+        f.write(dexhand_xml_content)
     viewer.launch(model, mj_data)
 
 def calculate_wrench(tactile):

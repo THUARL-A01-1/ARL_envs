@@ -49,14 +49,14 @@ class DexHandEnv(gym.Env):
         with open(os.path.join(os.environ["OBJECT_MODEL_PATH"], "object.xml"), "w") as f:
             f.write(self.object_xml_content)
         
-        # Reaplce the $ARL_ENV_PATH and $OBJECT_MODEL_PATH with the actual path in dexhand.xml
+        # Replace the $ARL_ENV_PATH with the actual path in dexhand.xml
         with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml")) as f:
             self.dexhand_xml_content = f.read()
             self.dexhand_xml_content = self.dexhand_xml_content.replace("$ARL_ENV_PATH", os.environ["ARL_ENV_PATH"])
         with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml"), "w") as f:
             f.write(self.dexhand_xml_content)
 
-        # Reaplce the $ARL_ENV_PATH and $OBJECT_MODEL_PATH with the actual path in scene.xml
+        # Replace the $ARL_ENV_PATH and $OBJECT_MODEL_PATH with the actual path in scene.xml
         with open(self.scene_path,"r") as f:
             self.xml_content = f.read()    
             self.xml_content = self.xml_content.replace("$ARL_ENV_PATH", os.environ["ARL_ENV_PATH"])
@@ -82,7 +82,7 @@ class DexHandEnv(gym.Env):
         with open(os.path.join(os.environ["OBJECT_MODEL_PATH"], "object.xml"), "w") as f:
             f.write(self.object_xml_content)
         
-        # Reaplce the $ARL_ENV_PATH and $OBJECT_MODEL_PATH with the actual path in dexhand.xml
+        # Replace back the $ARL_ENV_PATH with the actual path in dexhand.xml
         with open(os.path.join(os.environ["ARL_ENV_PATH"], "dexhand", "dexhand.xml")) as f:
             self.dexhand_xml_content = f.read()
             self.dexhand_xml_content = self.dexhand_xml_content.replace(os.environ["ARL_ENV_PATH"], "$ARL_ENV_PATH")
